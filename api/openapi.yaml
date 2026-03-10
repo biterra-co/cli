@@ -1,0 +1,318 @@
+openapi: 3.0.0
+info:
+  title: Checker API
+  description: |
+    API for Attack-Defence game automation.
+    Authenticate with a Bearer token (one per world); obtain and rotate the token in the world portal (A/D tab → Rotate token).
+  version: "1.0.0"
+
+servers:
+  - url: "{baseUrl}/api/ad/checker"
+    description: World API base URL + /api/ad/checker
+    variables:
+      baseUrl:
+        default: "https://world.example.com"
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: token
+      description: Token from Rotate token in the world portal (shown once after rotation).
+
+  schemas:
+    Round:
+      type: object
+      properties:
+        uid:
+          type: string
+        round_index:
+          type: integer
+        started_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    Team:
+      type: object
+      properties:
+        uid:
+          type: string
+        name:
+          type: string
+        color:
+          type: string
+        score:
+          type: integer
+
+    CheckerService:
+      type: object
+      description: A/D service (for CLI/config — which service this checker runs for).
+      properties:
+        uid:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        round_uid:
+          type: string
+        round_index:
+          type: integer
+          nullable: true
+
+    TeamInstance:
+      type: object
+      required:
+        - team_uid
+        - service_uid
+        - instance_url
+      description: Team instances are keyed by (team_uid, service_uid). round_uid is returned in list only (from service); not in PUT body. Flag is never returned in checker responses.
+      properties:
+        round_uid:
+          type: string
+          description: Returned in list only (from service); not in PUT body
+        team_uid:
+          type: string
+        service_uid:
+          type: string
+        instance_url:
+          type: string
+        country_code:
+          type: string
+          description: ISO 2-letter country code for map display
+
+    SLAResult:
+      type: object
+      properties:
+        team_uid:
+          type: string
+        service_uid:
+          type: string
+        up:
+          type: boolean
+
+paths:
+  /rounds/current:
+    get:
+      summary: Get current round
+      description: Returns the round currently active by time (now between started_at and ended_at), or null if none. Use to validate the checker token (200 = valid, 401 = invalid/expired).
+      operationId: getRoundsCurrent
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      round:
+                        $ref: "#/components/schemas/Round"
+                        nullable: true
+
+  /rounds:
+    post:
+      summary: Create next round
+      description: Creates a new round with round_index = max(existing) + 1. Requires start time and duration (same as UI).
+      operationId: createRound
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - started_at
+                - duration_minutes
+              properties:
+                started_at:
+                  type: string
+                  format: date-time
+                  description: Round start (RFC3339). Required.
+                duration_minutes:
+                  type: integer
+                  minimum: 1
+                  description: Round duration in minutes. Required. End time = started_at + duration.
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      round_index:
+                        type: integer
+
+  /services:
+    get:
+      summary: List services
+      description: Returns A/D services for this world. Query param round_uid optional (default current round). Use for CLI/config to pick which service this checker runs for.
+      operationId: getServices
+      parameters:
+        - name: round_uid
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Round UID; omit for current round
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      services:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/CheckerService"
+
+  /teams:
+    get:
+      summary: List teams
+      description: Returns all teams signed up for this world (uid, name, color, score).
+      operationId: getTeams
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      teams:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Team"
+
+  /teams/instances:
+    get:
+      summary: List team instances
+      description: Returns all team × service instance URLs for a round. Query param round_uid optional (default current round). Instances are keyed by (team_uid, service_uid). Flag is not returned.
+      operationId: getTeamInstances
+      parameters:
+        - name: round_uid
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Round UID; omit for current round
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      instances:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/TeamInstance"
+
+    put:
+      summary: Upsert team instances
+      description: Create or update instance URLs for team × service. No round_uid in body; each service_uid must belong to the current round. Instances are keyed by (team_uid, service_uid). Response does not include flag.
+      operationId: putTeamInstances
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - instances
+              properties:
+                instances:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/TeamInstance"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      instances:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/TeamInstance"
+
+  /sla:
+    post:
+      summary: Submit SLA results
+      description: Record SLA (service up/down) per team and service for a round. Only results with up=true are recorded; points come from ad_services.sla_points_per_round.
+      operationId: submitSLA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - round_index
+                - results
+              properties:
+                round_index:
+                  type: integer
+                  minimum: 1
+                results:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/SLAResult"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      round_index:
+                        type: integer
