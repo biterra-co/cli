@@ -1,4 +1,4 @@
-module github.com/geoctf/biterra-cli
+module github.com/biterra-co/cli
 
 go 1.21
 

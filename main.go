@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/geoctf/biterra-cli/cmd"
+	"github.com/biterra-co/cli/cmd"
 )
 
 func main() {

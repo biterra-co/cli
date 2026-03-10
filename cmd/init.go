@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/geoctf/biterra-cli/internal/client"
-	"github.com/geoctf/biterra-cli/internal/config"
+	"github.com/biterra-co/cli/internal/client"
+	"github.com/biterra-co/cli/internal/config"
 	"github.com/spf13/cobra"
 )
 

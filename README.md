@@ -1,5 +1,7 @@
 # Biterra Checker CLI
 
+[![Test](https://github.com/biterra-co/cli/actions/workflows/test.yml/badge.svg)](https://github.com/biterra-co/cli/actions/workflows/test.yml)
+
 Configure and validate access to the **Checker API** used for Attack-Defence (A/D) game automation. The CLI stores your API URL and checker token, optionally team and service, and can export environment variables for the checker process (e.g. in Docker).
 
 ## Getting the checker token
@@ -17,7 +19,7 @@ Validation is done by calling `GET /api/ad/checker/rounds/current`: **200** mean
 
 ### 1. Pre-built binaries (recommended)
 
-Download the latest release for your platform from [GitHub Releases](https://github.com/geoctf/biterra-cli/releases):
+Download the latest release for your platform from [GitHub Releases](https://github.com/biterra-co/cli/releases):
 
 - `linux/amd64`, `linux/arm64`
 - `darwin/amd64`, `darwin/arm64`
@@ -30,7 +32,7 @@ Unpack the tarball or zip and put the `biterra` binary on your `PATH` (e.g. `~/b
 If you have Go 1.21+ installed:
 
 ```bash
-go install github.com/geoctf/biterra-cli@latest
+go install github.com/biterra-co/cli@latest
 ```
 
 Ensure `$GOPATH/bin` or `$HOME/go/bin` is on your `PATH`.
@@ -102,3 +104,12 @@ Base path: `/api/ad/checker`. All requests require `Authorization: Bearer <token
 
 - **Network / 5xx:**  
   Check the API URL and connectivity; the CLI exits non-zero with a clear message.
+
+## Development
+
+- **Tests:** `make test` or `go test ./...`
+- **Build:** `make build` (produces `biterra` in the project directory)
+- **Lint:** `make vet` runs `go vet ./...`
+- **Install locally:** `make install` (builds and runs `go install`)
+
+CI runs the test suite and `go vet` on every push and pull request ([`.github/workflows/test.yml`](.github/workflows/test.yml)).

@@ -1,0 +1,23 @@
+# Binary
+biterra
+biterra.exe
+*.exe
+
+# Config (contains secrets; do not commit)
+.biterra.yaml
+.biterra.json
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Test / coverage
+coverage.out
+coverage.html
+*.test
