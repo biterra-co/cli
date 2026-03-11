@@ -8,12 +8,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Config holds API URL, checker token, and optional team/service for the checker process.
+// Config holds API URL, checker token, optional customer portal URL, and optional team/service for the checker process.
 type Config struct {
-	APIURL       string `yaml:"api_url" json:"api_url"`
-	CheckerToken string `yaml:"checker_token" json:"checker_token"`
-	TeamUID      string `yaml:"team_uid,omitempty" json:"team_uid,omitempty"`
-	ServiceUID   string `yaml:"service_uid,omitempty" json:"service_uid,omitempty"`
+	APIURL            string `yaml:"api_url" json:"api_url"`
+	CheckerToken      string `yaml:"checker_token" json:"checker_token"`
+	CustomerPortalURL string `yaml:"customer_portal_url,omitempty" json:"customer_portal_url,omitempty"`
+	TeamUID           string `yaml:"team_uid,omitempty" json:"team_uid,omitempty"`
+	ServiceUID        string `yaml:"service_uid,omitempty" json:"service_uid,omitempty"`
 }
 
 // Load reads config from project-local file, then user global, with env overrides. Returns (config, pathUsed, error).
@@ -21,6 +22,7 @@ func Load() (*Config, string, error) {
 	cfg := &Config{}
 	cfg.APIURL = os.Getenv("BITERRA_API_URL")
 	cfg.CheckerToken = os.Getenv("BITERRA_CHECKER_TOKEN")
+	cfg.CustomerPortalURL = os.Getenv("BITERRA_CUSTOMER_PORTAL_URL")
 	cfg.TeamUID = os.Getenv("BITERRA_TEAM_UID")
 	cfg.ServiceUID = os.Getenv("BITERRA_SERVICE_UID")
 
@@ -65,6 +67,9 @@ func Load() (*Config, string, error) {
 	}
 	if v := os.Getenv("BITERRA_SERVICE_UID"); v != "" {
 		cfg.ServiceUID = v
+	}
+	if v := os.Getenv("BITERRA_CUSTOMER_PORTAL_URL"); v != "" {
+		cfg.CustomerPortalURL = v
 	}
 	return cfg, path, nil
 }

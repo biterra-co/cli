@@ -8,12 +8,11 @@ Configure and validate access to the **Checker API** used for Attack-Defence (A/
 
 The checker API uses a **Bearer token** (one per A/D world). There is no separate login endpoint.
 
-1. Open the **world portal** for your event.
-2. Go to the **A/D** (Attack-Defence) tab.
-3. Click **Rotate token**. The new token is shown **once**; copy it and store it securely.
-4. Use this token when running `biterra init` or `biterra config set --token <token>`.
+When you run **`biterra init`**, the CLI opens your browser to the **Biterra customer portal** (Account → Developer). Sign in if prompted, create a token for your A/D world in the Developer section, then paste the token back into the terminal. The CLI looks up which world the token is for (via the customer portal) and saves the API URL and token. The token is shown **once** when you create it—copy it when the CLI asks for it.
 
-Validation is done by calling `GET /api/ad/checker/rounds/current`: **200** means the token is valid, **401** means invalid or expired (rotate the token again and update config).
+To get the token manually: open the [Biterra customer portal](https://ctf.biterra.co), go to **Settings** → **Account** → **Developer**, create a token for your world, and copy it. Paste it when you run `biterra init` (you don't need to enter the world URL—the CLI fetches it from the token).
+
+Validation is done by calling `GET /api/ad/checker/rounds/current`: **200** means the token is valid, **401** means invalid or expired (create a new token in the Developer section and update config).
 
 ## Installation
 
@@ -39,10 +38,11 @@ Ensure `$GOPATH/bin` or `$HOME/go/bin` is on your `PATH`.
 
 ## Quick start
 
-1. **Interactive setup** (prompts for API URL, token, then team and service):
+1. **Interactive setup:** run `biterra init`. The CLI asks whether to open the Biterra customer portal (Developer section) in your browser or to paste a token you already have. Paste the token when prompted; the CLI looks up which world it's for and validates it.
 
    ```bash
    biterra init
+   biterra init              # choose "browser" or "paste" when prompted
    ```
 
 2. **Validate** that the token works:
@@ -68,8 +68,8 @@ Ensure `$GOPATH/bin` or `$HOME/go/bin` is on your `PATH`.
 
 | Command | Description |
 |--------|-------------|
-| `biterra init` | Interactive setup: API URL, token (validated), then optional team and service. Saves config. |
-| `biterra config set --api-url URL --token TOKEN [--team-uid UID] [--service-uid UID]` | Non-interactive: set and persist API URL, token, and optional team/service. |
+| `biterra init` | Interactive setup: choose to open the portal in your browser or paste a token. CLI looks up which world it's for, validates, then optional team and service. Saves config. |
+| `biterra config set --api-url URL --token TOKEN [--customer-portal-url URL] [--team-uid UID] [--service-uid UID]` | Non-interactive: set and persist API URL, token, and optional customer portal URL, team, and service. |
 | `biterra config get` | Print current config (token masked). Use `--show-token` for scripting. |
 | `biterra check` | Validate: call `GET /rounds/current`; print success and current round or exit 1 with error. |
 | `biterra env` | Print env vars: `BITERRA_API_URL`, `BITERRA_CHECKER_TOKEN`, `BITERRA_TEAM_UID`, `BITERRA_SERVICE_UID`. Default: shell `export` lines; `--format dotenv` for a `.env` block. |
@@ -81,7 +81,9 @@ Ensure `$GOPATH/bin` or `$HOME/go/bin` is on your `PATH`.
 
 **Precedence:** Local over global; environment variables override file values.
 
-**Environment variables:** `BITERRA_API_URL`, `BITERRA_CHECKER_TOKEN`, `BITERRA_TEAM_UID`, `BITERRA_SERVICE_UID`.
+**Environment variables:** `BITERRA_API_URL`, `BITERRA_CHECKER_TOKEN`, `BITERRA_CUSTOMER_PORTAL_URL` (optional; default `https://ctf.biterra.co`), `BITERRA_TEAM_UID`, `BITERRA_SERVICE_UID`.
+
+**Optional config:** `customer_portal_url` — base URL of the Biterra customer portal, used when opening the browser and for token-info lookup during `biterra init`. Override locally (e.g. `BITERRA_CUSTOMER_PORTAL_URL=http://localhost:3000` or `biterra config set --customer-portal-url http://localhost:3000`) when running against a local portal.
 
 **Security:** Do not commit the config file (it contains the token). Prefer `chmod 600` on the config file.
 
@@ -96,7 +98,7 @@ Base path: `/api/ad/checker`. All requests require `Authorization: Bearer <token
 ## Error messages
 
 - **401 (invalid or expired token):**  
-  Rotate the token in the world portal and run:  
+  Create a new token in your Biterra account (Developer section) and run:  
   `biterra config set --token NEW_TOKEN`
 
 - **No config:**  

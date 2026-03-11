@@ -17,45 +17,45 @@ func TestCheckCmd(t *testing.T) {
 	}
 
 	tests := []struct {
-		name        string
-		config      string
-		env         map[string]string
-		handler     http.HandlerFunc
-		wantOut     string
-		wantErr     bool
-		wantErrMsg  string
+		name       string
+		config     string
+		env        map[string]string
+		handler    http.HandlerFunc
+		wantOut    string
+		wantErr    bool
+		wantErrMsg string
 	}{
 		{
-			name:   "no_config",
-			wantErr: true,
+			name:       "no_config",
+			wantErr:    true,
 			wantErrMsg: "no config",
 		},
 		{
-			name: "success_with_round",
+			name:   "success_with_round",
 			config: "api_url: https://x.com\nchecker_token: tok\n",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(200)
 				_, _ = w.Write([]byte(`{"success":true,"data":{"round":{"uid":"r1","round_index":3,"started_at":"2024-01-01T00:00:00Z","ended_at":null}}}`))
 			},
-			wantOut: "OK — current round: index=3",
+			wantOut: "3",
 		},
 		{
-			name: "success_no_round",
+			name:   "success_no_round",
 			config: "api_url: https://x.com\nchecker_token: tok\n",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(200)
 				_, _ = w.Write([]byte(`{"success":true,"data":{"round":null}}`))
 			},
-			wantOut: "OK — no round currently active",
+			wantOut: "valid",
 		},
 		{
-			name: "unauthorized",
+			name:   "unauthorized",
 			config: "api_url: https://x.com\nchecker_token: bad\n",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(401)
 			},
 			wantErr:    true,
-			wantErrMsg: "invalid or expired checker token",
+			wantErrMsg: "invalid or expired",
 		},
 	}
 	for _, tt := range tests {

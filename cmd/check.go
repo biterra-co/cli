@@ -6,14 +6,16 @@ import (
 
 	"github.com/biterra-co/cli/internal/client"
 	"github.com/biterra-co/cli/internal/config"
+	"github.com/biterra-co/cli/internal/ui"
 	"github.com/spf13/cobra"
 )
 
 var checkCmd = &cobra.Command{
-	Use:   "check",
-	Short: "Validate token: call GET /rounds/current",
-	Long:  "Uses stored config to call the checker API. Exits 0 if token is valid, 1 with message otherwise.",
-	RunE:  runCheck,
+	Use:          "check",
+	Short:        "Verify your config and token against the world API",
+	Long:         "Calls the checker API to confirm your token is valid and prints the current round. Exits 0 on success.",
+	RunE:         runCheck,
+	SilenceUsage: true,
 }
 
 func init() {
@@ -24,7 +26,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	cfg, err := config.LoadRequired()
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("no config: run 'biterra init' or set BITERRA_API_URL and BITERRA_CHECKER_TOKEN")
+			return fmt.Errorf("no config found — run 'biterra init' or set BITERRA_API_URL and BITERRA_CHECKER_TOKEN")
 		}
 		return err
 	}
@@ -32,14 +34,14 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	round, err := cl.GetRoundsCurrent(cmd.Context())
 	if err != nil {
 		if client.IsUnauthorized(err) {
-			return fmt.Errorf("invalid or expired checker token. Rotate the token in the world portal and run 'biterra config set --token NEW_TOKEN'")
+			return fmt.Errorf("token invalid or expired — create a new token in the Developer section and run 'biterra config set checker_token <token>'")
 		}
-		return err
+		return fmt.Errorf("could not reach the world API: %w", err)
 	}
 	if round != nil {
-		fmt.Printf("OK — current round: index=%d\n", round.RoundIndex)
+		ui.CheckStatus("valid", fmt.Sprintf("%d", round.RoundIndex))
 	} else {
-		fmt.Println("OK — no round currently active")
+		ui.CheckStatus("valid", "—")
 	}
 	return nil
 }

@@ -9,11 +9,12 @@ import (
 )
 
 var (
-	configShowToken bool
-	configSetAPIURL string
-	configSetToken  string
-	configSetTeam   string
-	configSetSvc    string
+	configShowToken            bool
+	configSetAPIURL            string
+	configSetToken             string
+	configSetCustomerPortalURL string
+	configSetTeam              string
+	configSetSvc               string
 )
 
 var configCmd = &cobra.Command{
@@ -22,15 +23,17 @@ var configCmd = &cobra.Command{
 }
 
 var configGetCmd = &cobra.Command{
-	Use:   "get",
-	Short: "Print current config (token masked unless --show-token)",
-	RunE:  runConfigGet,
+	Use:          "get",
+	Short:        "Print current config (token masked unless --show-token)",
+	RunE:         runConfigGet,
+	SilenceUsage: true,
 }
 
 var configSetCmd = &cobra.Command{
-	Use:   "set",
-	Short: "Set config values (non-interactive)",
-	RunE:  runConfigSet,
+	Use:          "set",
+	Short:        "Set config values (non-interactive)",
+	RunE:         runConfigSet,
+	SilenceUsage: true,
 }
 
 func init() {
@@ -41,6 +44,7 @@ func init() {
 
 	configSetCmd.Flags().StringVar(&configSetAPIURL, "api-url", "", "API base URL")
 	configSetCmd.Flags().StringVar(&configSetToken, "token", "", "Checker token")
+	configSetCmd.Flags().StringVar(&configSetCustomerPortalURL, "customer-portal-url", "", "Customer portal URL for token setup (optional, default https://ctf.biterra.co)")
 	configSetCmd.Flags().StringVar(&configSetTeam, "team-uid", "", "Team UID (optional)")
 	configSetCmd.Flags().StringVar(&configSetSvc, "service-uid", "", "Service UID (optional)")
 }
@@ -49,7 +53,7 @@ func runConfigGet(cmd *cobra.Command, args []string) error {
 	cfg, path, err := config.Load()
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("no config found; run 'biterra init' or set BITERRA_API_URL and BITERRA_CHECKER_TOKEN")
+			return fmt.Errorf("no config found — run 'biterra init' or set BITERRA_API_URL and BITERRA_CHECKER_TOKEN")
 		}
 		return err
 	}
@@ -67,6 +71,9 @@ func runConfigGet(cmd *cobra.Command, args []string) error {
 		} else {
 			fmt.Println("checker_token: (not set)")
 		}
+	}
+	if cfg.CustomerPortalURL != "" {
+		fmt.Printf("customer_portal_url: %s\n", cfg.CustomerPortalURL)
 	}
 	fmt.Printf("team_uid: %s\n", cfg.TeamUID)
 	fmt.Printf("service_uid: %s\n", cfg.ServiceUID)
@@ -91,6 +98,9 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 	if configSetToken != "" {
 		cfg.CheckerToken = configSetToken
 	}
+	if configSetCustomerPortalURL != "" {
+		cfg.CustomerPortalURL = configSetCustomerPortalURL
+	}
 	if configSetTeam != "" {
 		cfg.TeamUID = configSetTeam
 	}
@@ -98,7 +108,7 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 		cfg.ServiceUID = configSetSvc
 	}
 	if cfg.APIURL == "" || cfg.CheckerToken == "" {
-		return fmt.Errorf("api_url and token are required (use --api-url and --token)")
+		return fmt.Errorf("api_url and token are required — use --api-url and --token")
 	}
 	return config.Save(cfg)
 }

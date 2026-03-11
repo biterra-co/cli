@@ -2,20 +2,32 @@ package cmd
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/biterra-co/cli/internal/browser"
 	"github.com/biterra-co/cli/internal/client"
 	"github.com/biterra-co/cli/internal/config"
+	"github.com/biterra-co/cli/internal/discovery"
+	"github.com/biterra-co/cli/internal/ui"
 	"github.com/spf13/cobra"
 )
 
+// developerPath is the customer portal path for creating checker tokens (Account → Developer).
+const developerPath = "/settings/account#developer"
+
+// defaultCustomerPortalURL is used when opening the browser for token setup and for token-info lookup.
+const defaultCustomerPortalURL = "https://ctf.biterra.co"
+
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Interactive setup: API URL, token, team, and service",
-	Long:  "Prompts for API base URL and checker token, validates with the API, then prompts to pick team and service. Saves config to file.",
+	Short: "Interactive setup: token, team, and service",
+	Long:  "Prompts for your checker token (create one in the customer portal → Developer), looks up which world it's for, validates, then prompts to pick team and service.",
 	RunE:  runInit,
+	// Don't print full usage on every error; our errors are self-explanatory.
+	SilenceUsage: true,
 }
 
 func init() {
@@ -29,59 +41,128 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 	reader := bufio.NewReader(os.Stdin)
 
-	// API URL
+	customerPortalURL := cfg.CustomerPortalURL
+	if customerPortalURL == "" {
+		customerPortalURL = os.Getenv("BITERRA_CUSTOMER_PORTAL_URL")
+	}
+	if customerPortalURL == "" {
+		customerPortalURL = defaultCustomerPortalURL
+	}
+	customerPortalURL = strings.TrimSuffix(customerPortalURL, "/")
+
+	// Token: single prompt — paste token or press Enter to open browser (or keep current if set)
+	if cfg.CheckerToken == "" {
+		cfg.CheckerToken = os.Getenv("BITERRA_CHECKER_TOKEN")
+	}
+	ui.Header("Biterra Checker Setup", "We'll need your checker token.")
+	ui.Blank()
+	ui.Rule()
+	ui.Blank()
+	portalURL := customerPortalURL + developerPath
+	if cfg.CheckerToken != "" {
+		ui.Muted("  Paste a new token below, or press Enter to keep your current token.")
+	} else {
+		ui.Muted("  Paste your checker token below, or press Enter to open the browser and create one.")
+	}
+	ui.Blank()
+	ui.Prompt("Checker token: ")
+	line, _ := reader.ReadString('\n')
+	line = strings.TrimSpace(line)
+	if line != "" {
+		cfg.CheckerToken = line
+		cfg.APIURL = "" // force lookup for new token
+	} else if cfg.CheckerToken == "" {
+		// Empty and no current token — open browser and prompt again
+		if err := browser.Open(portalURL); err == nil {
+			ui.Info("Browser opened. Sign in and create a token in the Developer section.")
+		} else {
+			ui.Muted("Open this URL in your browser:")
+			ui.URL(portalURL)
+		}
+		ui.Blank()
+		ui.Muted("  Then paste the token below.")
+		ui.Prompt("Checker token: ")
+		line, _ = reader.ReadString('\n')
+		line = strings.TrimSpace(line)
+		if line != "" {
+			cfg.CheckerToken = line
+			cfg.APIURL = ""
+		}
+	}
+	if cfg.CheckerToken == "" {
+		return fmt.Errorf("a checker token is required — create one in the Developer section and paste it here")
+	}
+	ui.Blank()
+
+	// Resolve world API URL from token (if not already set)
 	if cfg.APIURL == "" {
 		cfg.APIURL = os.Getenv("BITERRA_API_URL")
 	}
 	if cfg.APIURL == "" {
-		fmt.Print("API base URL (e.g. https://world.example.com): ")
-		line, _ := reader.ReadString('\n')
-		cfg.APIURL = strings.TrimSpace(line)
-		if cfg.APIURL == "" {
-			return fmt.Errorf("api_url is required")
+		ui.Rule()
+		ui.Blank()
+		ui.StepStart("Looking up world for this token... ")
+		apiURL, err := discovery.TokenInfo(cmd.Context(), customerPortalURL, cfg.CheckerToken)
+		if err != nil {
+			var portalErr *discovery.ErrPortalNotReady
+			if errors.As(err, &portalErr) {
+				ui.StepFail()
+				ui.ErrorBlock(err.Error(), []string{
+					fmt.Sprintf("Ensure the customer portal is running at %s", customerPortalURL),
+					"For local dev, start the portal (e.g. yarn dev in next-customer-portal)",
+					"Or set BITERRA_API_URL and skip lookup: biterra config set --api-url <world-api-url>",
+				})
+				return err
+			}
+			return err
 		}
+		ui.StepOK("")
+		if apiURL == "" {
+			apiURL = "https://world.biterra.co"
+		}
+		cfg.APIURL = apiURL
+		ui.KeyValue("World API", cfg.APIURL)
 	}
 	cfg.APIURL = strings.TrimSuffix(cfg.APIURL, "/")
 
-	// Token
-	if cfg.CheckerToken == "" {
-		cfg.CheckerToken = os.Getenv("BITERRA_CHECKER_TOKEN")
-	}
-	if cfg.CheckerToken == "" {
-		fmt.Print("Checker token (from portal: A/D tab → Rotate token): ")
-		line, _ := reader.ReadString('\n')
-		cfg.CheckerToken = strings.TrimSpace(line)
-		if cfg.CheckerToken == "" {
-			return fmt.Errorf("checker_token is required")
-		}
-	}
-
 	// Validate token
+	ui.Blank()
+	ui.Rule()
+	ui.Blank()
+	ui.StepStart("Verifying token... ")
 	cl := client.New(cfg.APIURL, cfg.CheckerToken)
 	round, err := cl.GetRoundsCurrent(cmd.Context())
 	if err != nil {
+		ui.StepFail()
 		if client.IsUnauthorized(err) {
-			return fmt.Errorf("invalid or expired checker token: %w", err)
+			return fmt.Errorf("invalid or expired token — create a new one in the Developer section and run init again")
 		}
-		return fmt.Errorf("validate token: %w", err)
+		return fmt.Errorf("could not reach the world API: %w", err)
 	}
 	if round != nil {
-		fmt.Printf("Token valid. Current round: index=%d\n", round.RoundIndex)
+		ui.StepOK(fmt.Sprintf("round %d", round.RoundIndex))
 	} else {
-		fmt.Println("Token valid. No round currently active.")
+		ui.StepOK("no round active")
 	}
+	ui.Blank()
+	ui.Rule()
+	ui.Blank()
 
-	// Teams
+	// Teams: always show so re-runs can override
 	teams, err := cl.GetTeams(cmd.Context())
 	if err != nil {
-		return fmt.Errorf("list teams: %w", err)
+		return fmt.Errorf("could not load teams: %w", err)
 	}
-	if len(teams) > 0 && cfg.TeamUID == "" {
-		fmt.Println("Teams:")
+	if len(teams) > 0 {
+		ui.Section("Teams")
 		for i, t := range teams {
-			fmt.Printf("  %d) %s (%s)\n", i+1, t.Name, t.UID)
+			ui.Option(i+1, t.Name, t.UID)
 		}
-		fmt.Print("Which team UID (or number 1-N): ")
+		if cfg.TeamUID != "" {
+			ui.Prompt("Select team (number or UID, or Enter to keep current): ")
+		} else {
+			ui.Prompt("Select team (number or UID): ")
+		}
 		line, _ := reader.ReadString('\n')
 		choice := strings.TrimSpace(line)
 		if choice != "" {
@@ -93,21 +174,25 @@ func runInit(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Services
+	// Services: always show so re-runs can override
 	services, err := cl.GetServices(cmd.Context(), "")
 	if err != nil {
-		return fmt.Errorf("list services: %w", err)
+		return fmt.Errorf("could not load services: %w", err)
 	}
-	if len(services) > 0 && cfg.ServiceUID == "" {
-		fmt.Println("Services:")
+	if len(services) > 0 {
+		ui.Section("Services")
 		for i, s := range services {
-			ri := ""
+			detail := s.UID
 			if s.RoundIndex != nil {
-				ri = fmt.Sprintf(" round %d", *s.RoundIndex)
+				detail = fmt.Sprintf("%s, round %d", s.UID, *s.RoundIndex)
 			}
-			fmt.Printf("  %d) %s (%s)%s\n", i+1, s.Name, s.UID, ri)
+			ui.Option(i+1, s.Name, detail)
 		}
-		fmt.Print("Which service UID (or number 1-N): ")
+		if cfg.ServiceUID != "" {
+			ui.Prompt("Select service (number or UID, or Enter to keep current): ")
+		} else {
+			ui.Prompt("Select service (number or UID): ")
+		}
 		line, _ := reader.ReadString('\n')
 		choice := strings.TrimSpace(line)
 		if choice != "" {
@@ -120,9 +205,12 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := config.Save(cfg); err != nil {
-		return fmt.Errorf("save config: %w", err)
+		return fmt.Errorf("could not save config: %w", err)
 	}
-	fmt.Println("Config saved.")
+	ui.SuccessBlock("Setup complete. Config saved.", []string{
+		"biterra check  — verify token and see current round",
+		"biterra env    — export variables for your checker",
+	})
 	return nil
 }
 

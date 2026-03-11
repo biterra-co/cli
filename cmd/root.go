@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"os"
+
+	"github.com/biterra-co/cli/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -11,8 +14,9 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+	rootCmd.SilenceErrors = true
 	if err := rootCmd.Execute(); err != nil {
-		// cobra prints the error; exit non-zero
-		// os.Exit(1) is handled by cobra when RunE returns err
+		ui.ErrorToStderr(err.Error())
+		os.Exit(1)
 	}
 }

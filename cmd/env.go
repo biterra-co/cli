@@ -13,10 +13,11 @@ var (
 )
 
 var envCmd = &cobra.Command{
-	Use:   "env",
-	Short: "Print env vars for the checker process",
-	Long:  "Outputs BITERRA_API_URL, BITERRA_CHECKER_TOKEN, BITERRA_TEAM_UID, BITERRA_SERVICE_UID. Use with eval $(biterra env) or --format dotenv for docker run --env-file.",
-	RunE:  runEnv,
+	Use:          "env",
+	Short:        "Print environment variables for the checker process",
+	Long:         "Outputs BITERRA_API_URL, BITERRA_CHECKER_TOKEN, BITERRA_TEAM_UID, BITERRA_SERVICE_UID. Use with eval $(biterra env) or --format dotenv for docker run --env-file.",
+	RunE:         runEnv,
+	SilenceUsage: true,
 }
 
 func init() {
@@ -28,7 +29,7 @@ func runEnv(cmd *cobra.Command, args []string) error {
 	cfg, err := config.LoadRequired()
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("no config: run 'biterra init' or set BITERRA_API_URL and BITERRA_CHECKER_TOKEN")
+			return fmt.Errorf("no config found — run 'biterra init' or set BITERRA_API_URL and BITERRA_CHECKER_TOKEN")
 		}
 		return err
 	}
