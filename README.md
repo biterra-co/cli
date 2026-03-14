@@ -12,7 +12,7 @@ When you run **`biterra init`**, the CLI opens your browser to the **Biterra cus
 
 To get the token manually: open the [Biterra customer portal](https://ctf.biterra.co), go to **Settings** → **Account** → **Developer**, create a token for your world, and copy it. Paste it when you run `biterra init` (you don't need to enter the world URL—the CLI fetches it from the token).
 
-Validation is done by calling `GET /api/ad/checker/rounds/current`: **200** means the token is valid, **401** means invalid or expired (create a new token in the Developer section and update config).
+Validation is done by calling `GET /api/ad/checker/rounds/current`: **200** means the token is valid, **401** means invalid or expired (create a new token in the Developer section and update config). That response also includes the organizer-configured checker tick interval for the world.
 
 ## Installation
 
@@ -38,11 +38,11 @@ Ensure `$GOPATH/bin` or `$HOME/go/bin` is on your `PATH`.
 
 ## Quick start
 
-1. **Interactive setup:** run `biterra init`. The CLI asks whether to open the Biterra customer portal (Developer section) in your browser or to paste a token you already have. Paste the token when prompted; the CLI looks up which world it's for and validates it.
+1. **Interactive setup:** run `biterra init`. Paste a token when prompted, or press Enter to open the Biterra customer portal (Developer section) in your browser and create one. The CLI looks up which world the token is for, validates it, and can register the checker instance for your selected team and service.
 
    ```bash
-   biterra init
-   biterra init              # choose "browser" or "paste" when prompted
+  biterra init
+  biterra init              # press Enter to open the browser if you do not already have a token
    ```
 
 2. **Validate** that the token works:
@@ -68,12 +68,12 @@ Ensure `$GOPATH/bin` or `$HOME/go/bin` is on your `PATH`.
 
 | Command | Description |
 |--------|-------------|
-| `biterra init` | Interactive setup: choose to open the portal in your browser or paste a token. CLI looks up which world it's for, validates, prompts for team/service, then performs checker check-in (`PUT /teams/instances` with team+service). Saves config. |
+| `biterra init` | Interactive setup: paste a token or press Enter to open the portal in your browser. CLI looks up which world it's for, validates, prompts for team/service, then performs checker check-in (`PUT /teams/instances` with team+service only). Saves config. |
 | `biterra config set --api-url URL --token TOKEN [--customer-portal-url URL] [--team-uid UID] [--service-uid UID] [--probe-type TYPE]` | Non-interactive: set and persist API URL, token, optional customer portal/team/service, and probe settings. |
 | `biterra config get` | Print current config (token masked). Use `--show-token` for scripting. |
-| `biterra check` | Validate: call `GET /rounds/current`; print success and current round or exit 1 with error. |
+| `biterra check` | Validate: call `GET /rounds/current`; print success, current round, and the configured tick interval or exit 1 with error. |
 | `biterra env` | Print env vars: `BITERRA_API_URL`, `BITERRA_CHECKER_TOKEN`, `BITERRA_TEAM_UID`, `BITERRA_SERVICE_UID`. Default: shell `export` lines; `--format dotenv` for a `.env` block. |
-| `biterra run [--interval-seconds N] [--health-url URL]` | Run checker SLA loop: submit SLA only while the current round matches the selected service's round. Probe type from config determines up/down: `web` (HTTP 2xx), `binary` (non-empty flag file), `none` (always up). `--health-url` overrides web URL. |
+| `biterra run [--health-url URL] [--probe-timeout-seconds N]` | Run checker SLA loop: the checker checks in at startup, loads the world's configured tick interval from `GET /rounds/current`, then submits SLA only while the current round matches the selected service's round. Probe type from config determines up/down: `web` (HTTP 2xx), `binary` (non-empty flag file), `tcp` (connect to `host:port`), `command` (local exit 0), `grpc` (standard gRPC health check). `--health-url` overrides the configured web URL. |
 
 ## Config file and precedence
 
@@ -82,7 +82,9 @@ Ensure `$GOPATH/bin` or `$HOME/go/bin` is on your `PATH`.
 
 **Precedence:** Local over global; environment variables override file values.
 
-**Environment variables:** `BITERRA_API_URL`, `BITERRA_CHECKER_TOKEN`, `BITERRA_CUSTOMER_PORTAL_URL` (optional; default `https://ctf.biterra.co`), `BITERRA_TEAM_UID`, `BITERRA_SERVICE_UID`, `BITERRA_PROBE_TYPE`, `BITERRA_PROBE_WEB_URL`, `BITERRA_PROBE_BINARY_FLAG_FILE`.
+**Environment variables:** `BITERRA_API_URL`, `BITERRA_CHECKER_TOKEN`, `BITERRA_CUSTOMER_PORTAL_URL` (optional; default `https://ctf.biterra.co`), `BITERRA_TEAM_UID`, `BITERRA_SERVICE_UID`, `BITERRA_PROBE_TYPE`, `BITERRA_PROBE_WEB_URL`, `BITERRA_PROBE_BINARY_FLAG_FILE`, `BITERRA_PROBE_TCP_ADDRESS`, `BITERRA_PROBE_COMMAND`, `BITERRA_PROBE_GRPC_ADDRESS`, `BITERRA_PROBE_GRPC_SERVICE`.
+
+For `probe_type: command`, `probe_command` should be a command line such as `curl -fsS http://127.0.0.1:8080/healthz`, `python3 ./healthcheck.py`, or `go run ./healthcheck.go`.
 
 **Optional config:** `customer_portal_url` — base URL of the Biterra customer portal, used when opening the browser and for token-info lookup during `biterra init`. Override locally (e.g. `BITERRA_CUSTOMER_PORTAL_URL=http://localhost:3000` or `biterra config set --customer-portal-url http://localhost:3000`) when running against a local portal.
 

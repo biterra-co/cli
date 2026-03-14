@@ -35,7 +35,7 @@ func TestCheckCmd(t *testing.T) {
 			config: "api_url: https://x.com\nchecker_token: tok\n",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(200)
-				_, _ = w.Write([]byte(`{"success":true,"data":{"round":{"uid":"r1","round_index":3,"started_at":"2024-01-01T00:00:00Z","ended_at":null}}}`))
+				_, _ = w.Write([]byte(`{"success":true,"data":{"round":{"uid":"r1","round_index":3,"started_at":"2024-01-01T00:00:00Z","ended_at":null},"tick_interval_seconds":45}}`))
 			},
 			wantOut: "3",
 		},
@@ -102,6 +102,9 @@ func TestCheckCmd(t *testing.T) {
 			}
 			if tt.wantOut != "" && !strings.Contains(out, tt.wantOut) {
 				t.Errorf("output %q missing %q", out, tt.wantOut)
+			}
+			if tt.name == "success_with_round" && !strings.Contains(out, "45s") {
+				t.Errorf("output %q missing tick interval", out)
 			}
 			_ = srv
 		})

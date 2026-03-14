@@ -62,6 +62,12 @@ func TestEnvCmd(t *testing.T) {
 			wantOut: []string{"BITERRA_API_URL=https://c.com", "BITERRA_CHECKER_TOKEN=t3"},
 		},
 		{
+			name:    "exports_probe_fields",
+			config:  "api_url: https://c.com\nchecker_token: t3\nprobe_type: grpc\nprobe_grpc_address: 127.0.0.1:50051\nprobe_grpc_service: world.Health\n",
+			args:    []string{"env", "--format", "dotenv"},
+			wantOut: []string{"BITERRA_PROBE_TYPE=grpc", "BITERRA_PROBE_GRPC_ADDRESS=127.0.0.1:50051", "BITERRA_PROBE_GRPC_SERVICE=world.Health"},
+		},
+		{
 			name:       "unknown_format",
 			config:     "api_url: https://x.com\nchecker_token: t\n",
 			args:       []string{"env", "--format", "invalid"},
@@ -84,7 +90,7 @@ func TestEnvCmd(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_ = os.Remove(".biterra.yaml")
-			for _, k := range []string{"BITERRA_API_URL", "BITERRA_CHECKER_TOKEN", "BITERRA_TEAM_UID", "BITERRA_SERVICE_UID", "BITERRA_PROBE_TYPE", "BITERRA_PROBE_WEB_URL", "BITERRA_PROBE_BINARY_FLAG_FILE"} {
+			for _, k := range []string{"BITERRA_API_URL", "BITERRA_CHECKER_TOKEN", "BITERRA_TEAM_UID", "BITERRA_SERVICE_UID", "BITERRA_PROBE_TYPE", "BITERRA_PROBE_WEB_URL", "BITERRA_PROBE_BINARY_FLAG_FILE", "BITERRA_PROBE_TCP_ADDRESS", "BITERRA_PROBE_COMMAND", "BITERRA_PROBE_GRPC_ADDRESS", "BITERRA_PROBE_GRPC_SERVICE"} {
 				_ = os.Unsetenv(k)
 			}
 			for k, v := range tt.env {

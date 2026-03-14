@@ -46,7 +46,7 @@ func TestConfigGetCmd(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			configShowToken = false // reset flag between tests
 			_ = os.Remove(".biterra.yaml")
-			for _, k := range []string{"BITERRA_API_URL", "BITERRA_CHECKER_TOKEN", "BITERRA_TEAM_UID", "BITERRA_SERVICE_UID", "BITERRA_PROBE_TYPE", "BITERRA_PROBE_WEB_URL", "BITERRA_PROBE_BINARY_FLAG_FILE"} {
+			for _, k := range []string{"BITERRA_API_URL", "BITERRA_CHECKER_TOKEN", "BITERRA_TEAM_UID", "BITERRA_SERVICE_UID", "BITERRA_PROBE_TYPE", "BITERRA_PROBE_WEB_URL", "BITERRA_PROBE_BINARY_FLAG_FILE", "BITERRA_PROBE_TCP_ADDRESS", "BITERRA_PROBE_COMMAND", "BITERRA_PROBE_GRPC_ADDRESS", "BITERRA_PROBE_GRPC_SERVICE"} {
 				_ = os.Unsetenv(k)
 			}
 			for k, v := range tt.env {
@@ -105,7 +105,28 @@ func TestConfigSetCmd(t *testing.T) {
 		{
 			name:    "set_minimal",
 			args:    []string{"config", "set", "--api-url", "https://m.com", "--token", "t"},
-			thenGet: []string{"api_url: https://m.com", "team_uid: ", "service_uid: "},
+			thenGet: []string{"api_url: https://m.com", "team_uid: (not set)", "service_uid: (not set)"},
+		},
+		{
+			name:       "set_rejects_none_probe_type",
+			args:       []string{"config", "set", "--api-url", "https://m.com", "--token", "t", "--probe-type", "none"},
+			wantErr:    true,
+			wantErrMsg: `invalid probe_type "none"`,
+		},
+		{
+			name:    "set_tcp_probe",
+			args:    []string{"config", "set", "--api-url", "https://m.com", "--token", "t", "--probe-type", "tcp", "--probe-tcp-address", "127.0.0.1:31337"},
+			thenGet: []string{"probe_type: tcp", "probe_tcp_address: 127.0.0.1:31337"},
+		},
+		{
+			name:    "set_command_probe",
+			args:    []string{"config", "set", "--api-url", "https://m.com", "--token", "t", "--probe-type", "command", "--probe-command", "echo ok"},
+			thenGet: []string{"probe_type: command", "probe_command: echo ok"},
+		},
+		{
+			name:    "set_grpc_probe",
+			args:    []string{"config", "set", "--api-url", "https://m.com", "--token", "t", "--probe-type", "grpc", "--probe-grpc-address", "127.0.0.1:50051", "--probe-grpc-service", "health.v1"},
+			thenGet: []string{"probe_type: grpc", "probe_grpc_address: 127.0.0.1:50051", "probe_grpc_service: health.v1"},
 		},
 		// set_missing_url / set_missing_token are not tested here because config may be
 		// loaded from ~/.config/biterra/config.yaml, making the outcome environment-dependent.
@@ -113,8 +134,10 @@ func TestConfigSetCmd(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			configSetAPIURL, configSetToken, configSetTeam, configSetSvc = "", "", "", "" // reset flags
+			configSetProbeType, configSetProbeWebURL, configSetProbeBinaryFile = "", "", ""
+			configSetProbeTCPAddress, configSetProbeCommand, configSetProbeGRPCAddress, configSetProbeGRPCService = "", "", "", ""
 			_ = os.Remove(".biterra.yaml")
-			for _, k := range []string{"BITERRA_API_URL", "BITERRA_CHECKER_TOKEN", "BITERRA_TEAM_UID", "BITERRA_SERVICE_UID", "BITERRA_PROBE_TYPE", "BITERRA_PROBE_WEB_URL", "BITERRA_PROBE_BINARY_FLAG_FILE"} {
+			for _, k := range []string{"BITERRA_API_URL", "BITERRA_CHECKER_TOKEN", "BITERRA_TEAM_UID", "BITERRA_SERVICE_UID", "BITERRA_PROBE_TYPE", "BITERRA_PROBE_WEB_URL", "BITERRA_PROBE_BINARY_FLAG_FILE", "BITERRA_PROBE_TCP_ADDRESS", "BITERRA_PROBE_COMMAND", "BITERRA_PROBE_GRPC_ADDRESS", "BITERRA_PROBE_GRPC_SERVICE"} {
 				_ = os.Unsetenv(k)
 			}
 			rootCmd.SetArgs(tt.args)

@@ -254,24 +254,26 @@ func collectProbeConfig(reader *bufio.Reader, cfg *config.Config) error {
 	ui.Blank()
 	ui.Section("Probe configuration")
 	ui.Muted("Choose how 'biterra run' checks service health before submitting SLA.")
-	ui.Muted("Types: web (HTTP 2xx) | binary (flag file path) | none (always up)")
+	ui.Muted("Types: web (HTTP 2xx) | binary (flag file path) | tcp (host:port) | command (exit 0) | grpc (standard gRPC health)")
 	ui.Blank()
 
 	currentType := strings.ToLower(strings.TrimSpace(cfg.ProbeType))
-	if currentType == "" {
-		currentType = "none"
+	switch currentType {
+	case "web", "binary", "tcp", "command", "grpc":
+	default:
+		currentType = "web"
 	}
-	ui.Prompt("Probe type [web/binary/none] (Enter to keep %s): ", currentType)
+	ui.Prompt("Probe type [web/binary/tcp/command/grpc] (Enter to keep %s): ", currentType)
 	line, _ := reader.ReadString('\n')
 	choice := strings.ToLower(strings.TrimSpace(line))
 	if choice == "" {
 		choice = currentType
 	}
 	switch choice {
-	case "web", "binary", "none":
+	case "web", "binary", "tcp", "command", "grpc":
 		cfg.ProbeType = choice
 	default:
-		return fmt.Errorf("invalid probe type %q (use web, binary, or none)", choice)
+		return fmt.Errorf("invalid probe type %q (use web, binary, tcp, command, or grpc)", choice)
 	}
 
 	switch cfg.ProbeType {
@@ -286,6 +288,10 @@ func collectProbeConfig(reader *bufio.Reader, cfg *config.Config) error {
 			return fmt.Errorf("probe type web requires a health URL")
 		}
 		cfg.ProbeBinaryFile = ""
+		cfg.ProbeTCPAddress = ""
+		cfg.ProbeCommand = ""
+		cfg.ProbeGRPCAddress = ""
+		cfg.ProbeGRPCService = ""
 	case "binary":
 		ui.Prompt("Binary flag file path (Enter to keep %s): ", cfg.ProbeBinaryFile)
 		line, _ = reader.ReadString('\n')
@@ -297,9 +303,60 @@ func collectProbeConfig(reader *bufio.Reader, cfg *config.Config) error {
 			return fmt.Errorf("probe type binary requires a flag file path")
 		}
 		cfg.ProbeWebURL = ""
-	case "none":
+		cfg.ProbeTCPAddress = ""
+		cfg.ProbeCommand = ""
+		cfg.ProbeGRPCAddress = ""
+		cfg.ProbeGRPCService = ""
+	case "tcp":
+		ui.Prompt("TCP address host:port (Enter to keep %s): ", cfg.ProbeTCPAddress)
+		line, _ = reader.ReadString('\n')
+		v := strings.TrimSpace(line)
+		if v != "" {
+			cfg.ProbeTCPAddress = v
+		}
+		if strings.TrimSpace(cfg.ProbeTCPAddress) == "" {
+			return fmt.Errorf("probe type tcp requires a host:port")
+		}
 		cfg.ProbeWebURL = ""
 		cfg.ProbeBinaryFile = ""
+		cfg.ProbeCommand = ""
+		cfg.ProbeGRPCAddress = ""
+		cfg.ProbeGRPCService = ""
+	case "command":
+		ui.Prompt("Local command (Enter to keep %s): ", cfg.ProbeCommand)
+		line, _ = reader.ReadString('\n')
+		v := strings.TrimSpace(line)
+		if v != "" {
+			cfg.ProbeCommand = v
+		}
+		if strings.TrimSpace(cfg.ProbeCommand) == "" {
+			return fmt.Errorf("probe type command requires a local command")
+		}
+		cfg.ProbeWebURL = ""
+		cfg.ProbeBinaryFile = ""
+		cfg.ProbeTCPAddress = ""
+		cfg.ProbeGRPCAddress = ""
+		cfg.ProbeGRPCService = ""
+	case "grpc":
+		ui.Prompt("gRPC address host:port (Enter to keep %s): ", cfg.ProbeGRPCAddress)
+		line, _ = reader.ReadString('\n')
+		v := strings.TrimSpace(line)
+		if v != "" {
+			cfg.ProbeGRPCAddress = v
+		}
+		if strings.TrimSpace(cfg.ProbeGRPCAddress) == "" {
+			return fmt.Errorf("probe type grpc requires a host:port")
+		}
+		ui.Prompt("gRPC health service name (optional, Enter to keep %s): ", cfg.ProbeGRPCService)
+		line, _ = reader.ReadString('\n')
+		v = strings.TrimSpace(line)
+		if v != "" {
+			cfg.ProbeGRPCService = v
+		}
+		cfg.ProbeWebURL = ""
+		cfg.ProbeBinaryFile = ""
+		cfg.ProbeTCPAddress = ""
+		cfg.ProbeCommand = ""
 	}
 	return nil
 }

@@ -71,7 +71,7 @@ func TestLoad(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset env for this test
-			for _, k := range []string{"BITERRA_API_URL", "BITERRA_CHECKER_TOKEN", "BITERRA_TEAM_UID", "BITERRA_SERVICE_UID", "BITERRA_PROBE_TYPE", "BITERRA_PROBE_WEB_URL", "BITERRA_PROBE_BINARY_FLAG_FILE"} {
+			for _, k := range []string{"BITERRA_API_URL", "BITERRA_CHECKER_TOKEN", "BITERRA_TEAM_UID", "BITERRA_SERVICE_UID", "BITERRA_PROBE_TYPE", "BITERRA_PROBE_WEB_URL", "BITERRA_PROBE_BINARY_FLAG_FILE", "BITERRA_PROBE_TCP_ADDRESS", "BITERRA_PROBE_COMMAND", "BITERRA_PROBE_GRPC_ADDRESS", "BITERRA_PROBE_GRPC_SERVICE"} {
 				_ = os.Unsetenv(k)
 			}
 			for k, v := range tt.env {
@@ -161,7 +161,7 @@ func TestLoadRequired(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			for _, k := range []string{"BITERRA_API_URL", "BITERRA_CHECKER_TOKEN", "BITERRA_TEAM_UID", "BITERRA_SERVICE_UID", "BITERRA_PROBE_TYPE", "BITERRA_PROBE_WEB_URL", "BITERRA_PROBE_BINARY_FLAG_FILE"} {
+			for _, k := range []string{"BITERRA_API_URL", "BITERRA_CHECKER_TOKEN", "BITERRA_TEAM_UID", "BITERRA_SERVICE_UID", "BITERRA_PROBE_TYPE", "BITERRA_PROBE_WEB_URL", "BITERRA_PROBE_BINARY_FLAG_FILE", "BITERRA_PROBE_TCP_ADDRESS", "BITERRA_PROBE_COMMAND", "BITERRA_PROBE_GRPC_ADDRESS", "BITERRA_PROBE_GRPC_SERVICE"} {
 				_ = os.Unsetenv(k)
 			}
 			for k, v := range tt.env {

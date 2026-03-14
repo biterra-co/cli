@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/biterra-co/cli/internal/config"
+	"github.com/biterra-co/cli/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -19,6 +20,10 @@ var (
 	configSetProbeType         string
 	configSetProbeWebURL       string
 	configSetProbeBinaryFile   string
+	configSetProbeTCPAddress   string
+	configSetProbeCommand      string
+	configSetProbeGRPCAddress  string
+	configSetProbeGRPCService  string
 )
 
 var configCmd = &cobra.Command{
@@ -51,9 +56,13 @@ func init() {
 	configSetCmd.Flags().StringVar(&configSetCustomerPortalURL, "customer-portal-url", "", "Customer portal URL for token setup (optional, default https://ctf.biterra.co)")
 	configSetCmd.Flags().StringVar(&configSetTeam, "team-uid", "", "Team UID (optional)")
 	configSetCmd.Flags().StringVar(&configSetSvc, "service-uid", "", "Service UID (optional)")
-	configSetCmd.Flags().StringVar(&configSetProbeType, "probe-type", "", "Probe type: web, binary, or none")
+	configSetCmd.Flags().StringVar(&configSetProbeType, "probe-type", "", "Probe type: web, binary, tcp, command, or grpc")
 	configSetCmd.Flags().StringVar(&configSetProbeWebURL, "probe-web-url", "", "Probe URL for web checks (used when probe-type=web)")
 	configSetCmd.Flags().StringVar(&configSetProbeBinaryFile, "probe-binary-flag-file", "", "Flag file path for binary checks (used when probe-type=binary)")
+	configSetCmd.Flags().StringVar(&configSetProbeTCPAddress, "probe-tcp-address", "", "host:port for TCP checks (used when probe-type=tcp)")
+	configSetCmd.Flags().StringVar(&configSetProbeCommand, "probe-command", "", "Local command to run; exit 0 means up (used when probe-type=command)")
+	configSetCmd.Flags().StringVar(&configSetProbeGRPCAddress, "probe-grpc-address", "", "host:port for gRPC health checks (used when probe-type=grpc)")
+	configSetCmd.Flags().StringVar(&configSetProbeGRPCService, "probe-grpc-service", "", "Optional gRPC health service name (used when probe-type=grpc)")
 }
 
 func runConfigGet(cmd *cobra.Command, args []string) error {
@@ -64,29 +73,34 @@ func runConfigGet(cmd *cobra.Command, args []string) error {
 		}
 		return err
 	}
+	ui.Bold("Current configuration")
+	ui.Muted("Values loaded from config files and environment overrides.")
+	ui.Rule()
 	if path != "" {
-		fmt.Printf("Config file: %s\n", path)
+		ui.KeyValue("Config file", path)
 	} else {
-		fmt.Println("Config file: (env only)")
+		ui.KeyValue("Config file", "(env only)")
 	}
-	fmt.Printf("api_url: %s\n", cfg.APIURL)
-	if configShowToken {
-		fmt.Printf("checker_token: %s\n", cfg.CheckerToken)
-	} else {
-		if cfg.CheckerToken != "" {
-			fmt.Println("checker_token: ***")
-		} else {
-			fmt.Println("checker_token: (not set)")
-		}
-	}
-	if cfg.CustomerPortalURL != "" {
-		fmt.Printf("customer_portal_url: %s\n", cfg.CustomerPortalURL)
-	}
-	fmt.Printf("team_uid: %s\n", cfg.TeamUID)
-	fmt.Printf("service_uid: %s\n", cfg.ServiceUID)
-	fmt.Printf("probe_type: %s\n", cfg.ProbeType)
-	fmt.Printf("probe_web_url: %s\n", cfg.ProbeWebURL)
-	fmt.Printf("probe_binary_flag_file: %s\n", cfg.ProbeBinaryFile)
+	ui.Blank()
+
+	ui.Section("Connection")
+	ui.KeyValue("api_url", displayValue(cfg.APIURL))
+	ui.KeyValue("checker_token", displayToken(cfg.CheckerToken, configShowToken))
+	ui.KeyValue("customer_portal_url", displayValue(cfg.CustomerPortalURL))
+
+	ui.Section("Checker")
+	ui.KeyValue("team_uid", displayValue(cfg.TeamUID))
+	ui.KeyValue("service_uid", displayValue(cfg.ServiceUID))
+
+	ui.Section("Probe")
+	ui.KeyValue("probe_type", displayValue(cfg.ProbeType))
+	ui.KeyValue("probe_web_url", displayValue(cfg.ProbeWebURL))
+	ui.KeyValue("probe_binary_flag_file", displayValue(cfg.ProbeBinaryFile))
+	ui.KeyValue("probe_tcp_address", displayValue(cfg.ProbeTCPAddress))
+	ui.KeyValue("probe_command", displayValue(cfg.ProbeCommand))
+	ui.KeyValue("probe_grpc_address", displayValue(cfg.ProbeGRPCAddress))
+	ui.KeyValue("probe_grpc_service", displayValue(cfg.ProbeGRPCService))
+	ui.Rule()
 	return nil
 }
 
@@ -126,13 +140,25 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 	if configSetProbeBinaryFile != "" {
 		cfg.ProbeBinaryFile = strings.TrimSpace(configSetProbeBinaryFile)
 	}
+	if configSetProbeTCPAddress != "" {
+		cfg.ProbeTCPAddress = strings.TrimSpace(configSetProbeTCPAddress)
+	}
+	if configSetProbeCommand != "" {
+		cfg.ProbeCommand = strings.TrimSpace(configSetProbeCommand)
+	}
+	if configSetProbeGRPCAddress != "" {
+		cfg.ProbeGRPCAddress = strings.TrimSpace(configSetProbeGRPCAddress)
+	}
+	if configSetProbeGRPCService != "" {
+		cfg.ProbeGRPCService = strings.TrimSpace(configSetProbeGRPCService)
+	}
 	if cfg.APIURL == "" || cfg.CheckerToken == "" {
 		return fmt.Errorf("api_url and token are required — use --api-url and --token")
 	}
 	switch strings.ToLower(strings.TrimSpace(cfg.ProbeType)) {
-	case "", "none", "web", "binary":
+	case "", "web", "binary", "tcp", "command", "grpc":
 	default:
-		return fmt.Errorf("invalid probe_type %q (use web, binary, or none)", cfg.ProbeType)
+		return fmt.Errorf("invalid probe_type %q (use web, binary, tcp, command, or grpc)", cfg.ProbeType)
 	}
 	if strings.ToLower(strings.TrimSpace(cfg.ProbeType)) == "web" && strings.TrimSpace(cfg.ProbeWebURL) == "" {
 		return fmt.Errorf("probe_type=web requires --probe-web-url (or set probe_web_url in config)")
@@ -140,5 +166,42 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 	if strings.ToLower(strings.TrimSpace(cfg.ProbeType)) == "binary" && strings.TrimSpace(cfg.ProbeBinaryFile) == "" {
 		return fmt.Errorf("probe_type=binary requires --probe-binary-flag-file (or set probe_binary_flag_file in config)")
 	}
-	return config.Save(cfg)
+	if strings.ToLower(strings.TrimSpace(cfg.ProbeType)) == "tcp" && strings.TrimSpace(cfg.ProbeTCPAddress) == "" {
+		return fmt.Errorf("probe_type=tcp requires --probe-tcp-address (or set probe_tcp_address in config)")
+	}
+	if strings.ToLower(strings.TrimSpace(cfg.ProbeType)) == "command" && strings.TrimSpace(cfg.ProbeCommand) == "" {
+		return fmt.Errorf("probe_type=command requires --probe-command (or set probe_command in config)")
+	}
+	if strings.ToLower(strings.TrimSpace(cfg.ProbeType)) == "grpc" && strings.TrimSpace(cfg.ProbeGRPCAddress) == "" {
+		return fmt.Errorf("probe_type=grpc requires --probe-grpc-address (or set probe_grpc_address in config)")
+	}
+	if err := config.Save(cfg); err != nil {
+		return err
+	}
+
+	lines := []string{
+		fmt.Sprintf("API URL: %s", cfg.APIURL),
+		fmt.Sprintf("Team UID: %s", displayValue(cfg.TeamUID)),
+		fmt.Sprintf("Service UID: %s", displayValue(cfg.ServiceUID)),
+		fmt.Sprintf("Probe Type: %s", displayValue(cfg.ProbeType)),
+	}
+	ui.SuccessBlock("Config saved.", lines)
+	return nil
+}
+
+func displayValue(v string) string {
+	if strings.TrimSpace(v) == "" {
+		return "(not set)"
+	}
+	return v
+}
+
+func displayToken(token string, show bool) string {
+	if strings.TrimSpace(token) == "" {
+		return "(not set)"
+	}
+	if show {
+		return token
+	}
+	return "***"
 }

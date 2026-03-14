@@ -44,13 +44,13 @@ func TestGetRoundsCurrent(t *testing.T) {
 		{
 			name:       "success_with_round",
 			statusCode: 200,
-			body:       `{"success":true,"data":{"round":{"uid":"r1","round_index":2,"started_at":"2024-01-01T00:00:00Z","ended_at":null}}}`,
+			body:       `{"success":true,"data":{"round":{"uid":"r1","round_index":2,"started_at":"2024-01-01T00:00:00Z","ended_at":null},"tick_interval_seconds":45}}`,
 			wantRound:  &Round{UID: "r1", RoundIndex: 2, StartedAt: "2024-01-01T00:00:00Z", EndedAt: nil},
 		},
 		{
 			name:       "success_no_round",
 			statusCode: 200,
-			body:       `{"success":true,"data":{"round":null}}`,
+			body:       `{"success":true,"data":{"round":null,"tick_interval_seconds":30}}`,
 			wantRound:  nil,
 		},
 		{
@@ -100,6 +100,74 @@ func TestGetRoundsCurrent(t *testing.T) {
 			}
 			if authHeader != "Bearer test-token" {
 				t.Errorf("Authorization = %q", authHeader)
+			}
+		})
+	}
+}
+
+func TestGetRuntimeSettings(t *testing.T) {
+	tests := []struct {
+		name         string
+		statusCode   int
+		body         string
+		wantRound    *Round
+		wantInterval int
+		wantErr      bool
+	}{
+		{
+			name:         "success_with_interval",
+			statusCode:   200,
+			body:         `{"success":true,"data":{"round":{"uid":"r1","round_index":2,"started_at":"2024-01-01T00:00:00Z","ended_at":null},"tick_interval_seconds":45}}`,
+			wantRound:    &Round{UID: "r1", RoundIndex: 2, StartedAt: "2024-01-01T00:00:00Z", EndedAt: nil},
+			wantInterval: 45,
+		},
+		{
+			name:         "missing_interval_uses_default",
+			statusCode:   200,
+			body:         `{"success":true,"data":{"round":null}}`,
+			wantInterval: 30,
+		},
+		{
+			name:         "invalid_interval_uses_default",
+			statusCode:   200,
+			body:         `{"success":true,"data":{"round":null,"tick_interval_seconds":0}}`,
+			wantInterval: 30,
+		},
+		{
+			name:       "server_error",
+			statusCode: 500,
+			body:       `{}`,
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.statusCode)
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			defer srv.Close()
+
+			cl := New(srv.URL, "test-token")
+			settings, err := cl.GetRuntimeSettings(context.Background())
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("GetRuntimeSettings() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr {
+				return
+			}
+			if settings.TickIntervalSeconds != tt.wantInterval {
+				t.Fatalf("TickIntervalSeconds = %d, want %d", settings.TickIntervalSeconds, tt.wantInterval)
+			}
+			if tt.wantRound == nil {
+				if settings.Round != nil {
+					t.Fatalf("Round = %+v, want nil", settings.Round)
+				}
+				return
+			}
+			if settings.Round == nil || settings.Round.UID != tt.wantRound.UID || settings.Round.RoundIndex != tt.wantRound.RoundIndex {
+				t.Fatalf("Round = %+v, want %+v", settings.Round, tt.wantRound)
 			}
 		})
 	}

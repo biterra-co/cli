@@ -52,6 +52,18 @@ func runEnv(cmd *cobra.Command, args []string) error {
 		if cfg.ProbeBinaryFile != "" {
 			fmt.Printf("export BITERRA_PROBE_BINARY_FLAG_FILE=%q\n", cfg.ProbeBinaryFile)
 		}
+		if cfg.ProbeTCPAddress != "" {
+			fmt.Printf("export BITERRA_PROBE_TCP_ADDRESS=%q\n", cfg.ProbeTCPAddress)
+		}
+		if cfg.ProbeCommand != "" {
+			fmt.Printf("export BITERRA_PROBE_COMMAND=%q\n", cfg.ProbeCommand)
+		}
+		if cfg.ProbeGRPCAddress != "" {
+			fmt.Printf("export BITERRA_PROBE_GRPC_ADDRESS=%q\n", cfg.ProbeGRPCAddress)
+		}
+		if cfg.ProbeGRPCService != "" {
+			fmt.Printf("export BITERRA_PROBE_GRPC_SERVICE=%q\n", cfg.ProbeGRPCService)
+		}
 	case "dotenv":
 		fmt.Printf("BITERRA_API_URL=%s\n", cfg.APIURL)
 		fmt.Printf("BITERRA_CHECKER_TOKEN=%s\n", cfg.CheckerToken)
@@ -69,6 +81,18 @@ func runEnv(cmd *cobra.Command, args []string) error {
 		}
 		if cfg.ProbeBinaryFile != "" {
 			fmt.Printf("BITERRA_PROBE_BINARY_FLAG_FILE=%s\n", cfg.ProbeBinaryFile)
+		}
+		if cfg.ProbeTCPAddress != "" {
+			fmt.Printf("BITERRA_PROBE_TCP_ADDRESS=%s\n", cfg.ProbeTCPAddress)
+		}
+		if cfg.ProbeCommand != "" {
+			fmt.Printf("BITERRA_PROBE_COMMAND=%s\n", cfg.ProbeCommand)
+		}
+		if cfg.ProbeGRPCAddress != "" {
+			fmt.Printf("BITERRA_PROBE_GRPC_ADDRESS=%s\n", cfg.ProbeGRPCAddress)
+		}
+		if cfg.ProbeGRPCService != "" {
+			fmt.Printf("BITERRA_PROBE_GRPC_SERVICE=%s\n", cfg.ProbeGRPCService)
 		}
 	default:
 		return fmt.Errorf("unknown format %q (use shell or dotenv)", envFormat)

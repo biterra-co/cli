@@ -70,8 +70,15 @@ type Round struct {
 	EndedAt    *string `json:"ended_at,omitempty"`
 }
 
-// GetRoundsCurrent returns the current round or nil if none. Returns error on 401 or other failure.
-func (c *Client) GetRoundsCurrent(ctx context.Context) (*Round, error) {
+type RuntimeSettings struct {
+	Round               *Round `json:"round"`
+	TickIntervalSeconds int    `json:"tick_interval_seconds"`
+}
+
+const defaultTickIntervalSeconds = 30
+
+// GetRuntimeSettings returns the current round plus checker runtime settings.
+func (c *Client) GetRuntimeSettings(ctx context.Context) (*RuntimeSettings, error) {
 	resp, err := c.do(ctx, http.MethodGet, "/rounds/current", nil)
 	if err != nil {
 		return nil, err
@@ -87,15 +94,25 @@ func (c *Client) GetRoundsCurrent(ctx context.Context) (*Round, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		return nil, err
 	}
-	var data struct {
-		Round *Round `json:"round"`
-	}
+	data := &RuntimeSettings{TickIntervalSeconds: defaultTickIntervalSeconds}
 	if len(out.Data) > 0 {
-		if err := json.Unmarshal(out.Data, &data); err != nil {
+		if err := json.Unmarshal(out.Data, data); err != nil {
 			return nil, err
 		}
 	}
-	return data.Round, nil
+	if data.TickIntervalSeconds < 1 {
+		data.TickIntervalSeconds = defaultTickIntervalSeconds
+	}
+	return data, nil
+}
+
+// GetRoundsCurrent returns the current round or nil if none. Returns error on 401 or other failure.
+func (c *Client) GetRoundsCurrent(ctx context.Context) (*Round, error) {
+	settings, err := c.GetRuntimeSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return settings.Round, nil
 }
 
 type errUnauthorized struct{ msg string }

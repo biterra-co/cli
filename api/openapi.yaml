@@ -3,7 +3,7 @@ info:
   title: Checker API
   description: |
     API for Attack-Defence game automation.
-    Authenticate with a Bearer token (one per world); obtain and rotate the token in the world portal (A/D tab → Rotate token).
+    Authenticate with a Bearer token (one per world); create the token in the Biterra customer portal Developer settings.
   version: "1.0.0"
 
 servers:
@@ -22,7 +22,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: token
-      description: Token from Rotate token in the world portal (shown once after rotation).
+      description: Token created in Biterra customer portal Developer settings (shown once after creation).
 
   schemas:
     Round:
@@ -73,8 +73,7 @@ components:
       required:
         - team_uid
         - service_uid
-        - instance_url
-      description: Team instances are keyed by (team_uid, service_uid). round_uid is returned in list only (from service); not in PUT body. Flag is never returned in checker responses.
+      description: Team instances are keyed by (team_uid, service_uid). round_uid is returned in list only (from service); not in PUT body. instance_url is optional for checker check-in so the admin can set it later. Flag is never returned in checker responses.
       properties:
         round_uid:
           type: string
@@ -103,7 +102,7 @@ paths:
   /rounds/current:
     get:
       summary: Get current round
-      description: Returns the round currently active by time (now between started_at and ended_at), or null if none. Use to validate the checker token (200 = valid, 401 = invalid/expired).
+      description: Returns the round currently active by time (now between started_at and ended_at), or null if none, plus the organizer-configured checker tick interval. Use to validate the checker token (200 = valid, 401 = invalid/expired).
       operationId: getRoundsCurrent
       responses:
         "200":
@@ -121,6 +120,9 @@ paths:
                       round:
                         $ref: "#/components/schemas/Round"
                         nullable: true
+                      tick_interval_seconds:
+                        type: integer
+                        minimum: 1
 
   /rounds:
     post:
@@ -164,7 +166,7 @@ paths:
   /services:
     get:
       summary: List services
-      description: Returns A/D services for this world. Query param round_uid optional (default current round). Use for CLI/config to pick which service this checker runs for.
+      description: Returns A/D services for this world. Query param round_uid is optional. If omitted, the API returns all services for the world so the checker can resolve its configured service even when a different round is active. Use for CLI/config to pick which service this checker runs for.
       operationId: getServices
       parameters:
         - name: round_uid
@@ -217,7 +219,7 @@ paths:
   /teams/instances:
     get:
       summary: List team instances
-      description: Returns all team × service instance URLs for a round. Query param round_uid optional (default current round). Instances are keyed by (team_uid, service_uid). Flag is not returned.
+      description: Returns all team x service instances for a round. Query param round_uid is optional. If omitted, the API uses the current round; if there is no active round it returns an empty list. Instances are keyed by (team_uid, service_uid). Flag is not returned.
       operationId: getTeamInstances
       parameters:
         - name: round_uid
@@ -246,7 +248,7 @@ paths:
 
     put:
       summary: Upsert team instances
-      description: Create or update instance URLs for team × service. No round_uid in body; each service_uid must belong to the current round. Instances are keyed by (team_uid, service_uid). Response does not include flag.
+      description: Create or update team x service instances. No round_uid in body. instance_url is optional for checker check-in, so sending only team_uid and service_uid registers the row without overwriting an admin-set URL. service_uid must belong to this world. Response does not include flag.
       operationId: putTeamInstances
       requestBody:
         required: true

@@ -15,9 +15,13 @@ type Config struct {
 	CustomerPortalURL string `yaml:"customer_portal_url,omitempty" json:"customer_portal_url,omitempty"`
 	TeamUID           string `yaml:"team_uid,omitempty" json:"team_uid,omitempty"`
 	ServiceUID        string `yaml:"service_uid,omitempty" json:"service_uid,omitempty"`
-	ProbeType         string `yaml:"probe_type,omitempty" json:"probe_type,omitempty"`                         // web | binary | none
+	ProbeType         string `yaml:"probe_type,omitempty" json:"probe_type,omitempty"`                         // web | binary | tcp | command | grpc
 	ProbeWebURL       string `yaml:"probe_web_url,omitempty" json:"probe_web_url,omitempty"`                   // used when probe_type=web
 	ProbeBinaryFile   string `yaml:"probe_binary_flag_file,omitempty" json:"probe_binary_flag_file,omitempty"` // used when probe_type=binary
+	ProbeTCPAddress   string `yaml:"probe_tcp_address,omitempty" json:"probe_tcp_address,omitempty"`           // used when probe_type=tcp
+	ProbeCommand      string `yaml:"probe_command,omitempty" json:"probe_command,omitempty"`                   // used when probe_type=command
+	ProbeGRPCAddress  string `yaml:"probe_grpc_address,omitempty" json:"probe_grpc_address,omitempty"`         // used when probe_type=grpc
+	ProbeGRPCService  string `yaml:"probe_grpc_service,omitempty" json:"probe_grpc_service,omitempty"`         // optional when probe_type=grpc
 }
 
 // Load reads config from project-local file, then user global, with env overrides. Returns (config, pathUsed, error).
@@ -31,6 +35,10 @@ func Load() (*Config, string, error) {
 	cfg.ProbeType = os.Getenv("BITERRA_PROBE_TYPE")
 	cfg.ProbeWebURL = os.Getenv("BITERRA_PROBE_WEB_URL")
 	cfg.ProbeBinaryFile = os.Getenv("BITERRA_PROBE_BINARY_FLAG_FILE")
+	cfg.ProbeTCPAddress = os.Getenv("BITERRA_PROBE_TCP_ADDRESS")
+	cfg.ProbeCommand = os.Getenv("BITERRA_PROBE_COMMAND")
+	cfg.ProbeGRPCAddress = os.Getenv("BITERRA_PROBE_GRPC_ADDRESS")
+	cfg.ProbeGRPCService = os.Getenv("BITERRA_PROBE_GRPC_SERVICE")
 
 	// Prefer project-local then global
 	localPaths := []string{"./.biterra.yaml", "./.biterra.json"}
@@ -82,6 +90,18 @@ func Load() (*Config, string, error) {
 	}
 	if v := os.Getenv("BITERRA_PROBE_BINARY_FLAG_FILE"); v != "" {
 		cfg.ProbeBinaryFile = v
+	}
+	if v := os.Getenv("BITERRA_PROBE_TCP_ADDRESS"); v != "" {
+		cfg.ProbeTCPAddress = v
+	}
+	if v := os.Getenv("BITERRA_PROBE_COMMAND"); v != "" {
+		cfg.ProbeCommand = v
+	}
+	if v := os.Getenv("BITERRA_PROBE_GRPC_ADDRESS"); v != "" {
+		cfg.ProbeGRPCAddress = v
+	}
+	if v := os.Getenv("BITERRA_PROBE_GRPC_SERVICE"); v != "" {
+		cfg.ProbeGRPCService = v
 	}
 	if v := os.Getenv("BITERRA_CUSTOMER_PORTAL_URL"); v != "" {
 		cfg.CustomerPortalURL = v

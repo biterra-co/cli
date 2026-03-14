@@ -31,17 +31,35 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	cl := client.New(cfg.APIURL, cfg.CheckerToken)
-	round, err := cl.GetRoundsCurrent(cmd.Context())
+	ui.Bold("Checker status")
+	ui.Muted("Verifying your token and runtime settings against the world API.")
+	ui.Rule()
+	ui.Blank()
+
+	ui.StepStart("Checking token and world settings... ")
+	settings, err := cl.GetRuntimeSettings(cmd.Context())
 	if err != nil {
+		ui.StepFail()
 		if client.IsUnauthorized(err) {
 			return fmt.Errorf("token invalid or expired — create a new token in the Developer section and run 'biterra config set checker_token <token>'")
 		}
 		return fmt.Errorf("could not reach the world API: %w", err)
 	}
+	round := settings.Round
 	if round != nil {
-		ui.CheckStatus("valid", fmt.Sprintf("%d", round.RoundIndex))
+		ui.StepOK(fmt.Sprintf("round %d active", round.RoundIndex))
 	} else {
-		ui.CheckStatus("valid", "—")
+		ui.StepOK("no round active")
 	}
+
+	ui.Blank()
+	ui.KeyValue("Token", "valid")
+	if round != nil {
+		ui.KeyValue("Round", fmt.Sprintf("%d", round.RoundIndex))
+	} else {
+		ui.KeyValue("Round", "(none)")
+	}
+	ui.KeyValue("Tick Interval", fmt.Sprintf("%ds", settings.TickIntervalSeconds))
+	ui.Rule()
 	return nil
 }
