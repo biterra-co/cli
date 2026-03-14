@@ -36,9 +36,9 @@ func TestConfigGetCmd(t *testing.T) {
 			wantOut: []string{"api_url: https://b.com", "checker_token: visible"},
 		},
 		{
-			name:   "get_env_only",
-			env:    map[string]string{"BITERRA_API_URL": "https://env.com", "BITERRA_CHECKER_TOKEN": "envtok"},
-			args:   []string{"config", "get"},
+			name:    "get_env_only",
+			env:     map[string]string{"BITERRA_API_URL": "https://env.com", "BITERRA_CHECKER_TOKEN": "envtok"},
+			args:    []string{"config", "get"},
 			wantOut: []string{"Config file: (env only)", "api_url: https://env.com", "checker_token: ***"},
 		},
 	}
@@ -46,7 +46,7 @@ func TestConfigGetCmd(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			configShowToken = false // reset flag between tests
 			_ = os.Remove(".biterra.yaml")
-			for _, k := range []string{"BITERRA_API_URL", "BITERRA_CHECKER_TOKEN", "BITERRA_TEAM_UID", "BITERRA_SERVICE_UID"} {
+			for _, k := range []string{"BITERRA_API_URL", "BITERRA_CHECKER_TOKEN", "BITERRA_TEAM_UID", "BITERRA_SERVICE_UID", "BITERRA_PROBE_TYPE", "BITERRA_PROBE_WEB_URL", "BITERRA_PROBE_BINARY_FLAG_FILE"} {
 				_ = os.Unsetenv(k)
 			}
 			for k, v := range tt.env {
@@ -114,7 +114,7 @@ func TestConfigSetCmd(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			configSetAPIURL, configSetToken, configSetTeam, configSetSvc = "", "", "", "" // reset flags
 			_ = os.Remove(".biterra.yaml")
-			for _, k := range []string{"BITERRA_API_URL", "BITERRA_CHECKER_TOKEN", "BITERRA_TEAM_UID", "BITERRA_SERVICE_UID"} {
+			for _, k := range []string{"BITERRA_API_URL", "BITERRA_CHECKER_TOKEN", "BITERRA_TEAM_UID", "BITERRA_SERVICE_UID", "BITERRA_PROBE_TYPE", "BITERRA_PROBE_WEB_URL", "BITERRA_PROBE_BINARY_FLAG_FILE"} {
 				_ = os.Unsetenv(k)
 			}
 			rootCmd.SetArgs(tt.args)

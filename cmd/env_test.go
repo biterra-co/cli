@@ -44,20 +44,20 @@ func TestEnvCmd(t *testing.T) {
 		wantErrMsg string
 	}{
 		{
-			name: "shell_format_full",
-			config: "api_url: https://a.com\nchecker_token: t1\nteam_uid: team-1\nservice_uid: svc-1\n",
+			name:    "shell_format_full",
+			config:  "api_url: https://a.com\nchecker_token: t1\nteam_uid: team-1\nservice_uid: svc-1\n",
 			args:    []string{"env", "--format", "shell"},
 			wantOut: []string{"export BITERRA_API_URL=", "https://a.com", "export BITERRA_CHECKER_TOKEN=", "export BITERRA_TEAM_UID=", "team-1", "export BITERRA_SERVICE_UID=", "svc-1"},
 		},
 		{
-			name: "shell_format_minimal",
-			config: "api_url: https://b.com\nchecker_token: t2\n",
+			name:    "shell_format_minimal",
+			config:  "api_url: https://b.com\nchecker_token: t2\n",
 			args:    []string{"env", "--format", "shell"},
 			wantOut: []string{"export BITERRA_API_URL=", "https://b.com", "export BITERRA_CHECKER_TOKEN="},
 		},
 		{
-			name: "dotenv_format",
-			config: "api_url: https://c.com\nchecker_token: t3\n",
+			name:    "dotenv_format",
+			config:  "api_url: https://c.com\nchecker_token: t3\n",
 			args:    []string{"env", "--format", "dotenv"},
 			wantOut: []string{"BITERRA_API_URL=https://c.com", "BITERRA_CHECKER_TOKEN=t3"},
 		},
@@ -69,14 +69,14 @@ func TestEnvCmd(t *testing.T) {
 			wantErrMsg: "unknown format",
 		},
 		{
-			name:    "no_config",
-			args:    []string{"env"},
-			wantErr: true,
+			name:       "no_config",
+			args:       []string{"env"},
+			wantErr:    true,
 			wantErrMsg: "no config",
 		},
 		{
-			name: "env_only_config",
-			env:   map[string]string{"BITERRA_API_URL": "https://env.com", "BITERRA_CHECKER_TOKEN": "env-tok"},
+			name:    "env_only_config",
+			env:     map[string]string{"BITERRA_API_URL": "https://env.com", "BITERRA_CHECKER_TOKEN": "env-tok"},
 			args:    []string{"env", "--format", "dotenv"},
 			wantOut: []string{"BITERRA_API_URL=https://env.com", "BITERRA_CHECKER_TOKEN=env-tok"},
 		},
@@ -84,7 +84,7 @@ func TestEnvCmd(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_ = os.Remove(".biterra.yaml")
-			for _, k := range []string{"BITERRA_API_URL", "BITERRA_CHECKER_TOKEN", "BITERRA_TEAM_UID", "BITERRA_SERVICE_UID"} {
+			for _, k := range []string{"BITERRA_API_URL", "BITERRA_CHECKER_TOKEN", "BITERRA_TEAM_UID", "BITERRA_SERVICE_UID", "BITERRA_PROBE_TYPE", "BITERRA_PROBE_WEB_URL", "BITERRA_PROBE_BINARY_FLAG_FILE"} {
 				_ = os.Unsetenv(k)
 			}
 			for k, v := range tt.env {

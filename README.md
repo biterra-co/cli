@@ -69,11 +69,11 @@ Ensure `$GOPATH/bin` or `$HOME/go/bin` is on your `PATH`.
 | Command | Description |
 |--------|-------------|
 | `biterra init` | Interactive setup: choose to open the portal in your browser or paste a token. CLI looks up which world it's for, validates, prompts for team/service, then performs checker check-in (`PUT /teams/instances` with team+service). Saves config. |
-| `biterra config set --api-url URL --token TOKEN [--customer-portal-url URL] [--team-uid UID] [--service-uid UID]` | Non-interactive: set and persist API URL, token, and optional customer portal URL, team, and service. |
+| `biterra config set --api-url URL --token TOKEN [--customer-portal-url URL] [--team-uid UID] [--service-uid UID] [--probe-type TYPE]` | Non-interactive: set and persist API URL, token, optional customer portal/team/service, and probe settings. |
 | `biterra config get` | Print current config (token masked). Use `--show-token` for scripting. |
 | `biterra check` | Validate: call `GET /rounds/current`; print success and current round or exit 1 with error. |
 | `biterra env` | Print env vars: `BITERRA_API_URL`, `BITERRA_CHECKER_TOKEN`, `BITERRA_TEAM_UID`, `BITERRA_SERVICE_UID`. Default: shell `export` lines; `--format dotenv` for a `.env` block. |
-| `biterra run [--interval-seconds N] [--health-url URL]` | Run checker SLA loop: submit SLA only while the current round matches the selected service's round. Optional `--health-url` sets up/down by HTTP 2xx. |
+| `biterra run [--interval-seconds N] [--health-url URL]` | Run checker SLA loop: submit SLA only while the current round matches the selected service's round. Probe type from config determines up/down: `web` (HTTP 2xx), `binary` (non-empty flag file), `none` (always up). `--health-url` overrides web URL. |
 
 ## Config file and precedence
 
@@ -82,7 +82,7 @@ Ensure `$GOPATH/bin` or `$HOME/go/bin` is on your `PATH`.
 
 **Precedence:** Local over global; environment variables override file values.
 
-**Environment variables:** `BITERRA_API_URL`, `BITERRA_CHECKER_TOKEN`, `BITERRA_CUSTOMER_PORTAL_URL` (optional; default `https://ctf.biterra.co`), `BITERRA_TEAM_UID`, `BITERRA_SERVICE_UID`.
+**Environment variables:** `BITERRA_API_URL`, `BITERRA_CHECKER_TOKEN`, `BITERRA_CUSTOMER_PORTAL_URL` (optional; default `https://ctf.biterra.co`), `BITERRA_TEAM_UID`, `BITERRA_SERVICE_UID`, `BITERRA_PROBE_TYPE`, `BITERRA_PROBE_WEB_URL`, `BITERRA_PROBE_BINARY_FLAG_FILE`.
 
 **Optional config:** `customer_portal_url` — base URL of the Biterra customer portal, used when opening the browser and for token-info lookup during `biterra init`. Override locally (e.g. `BITERRA_CUSTOMER_PORTAL_URL=http://localhost:3000` or `biterra config set --customer-portal-url http://localhost:3000`) when running against a local portal.
 

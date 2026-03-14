@@ -15,7 +15,7 @@ var (
 var envCmd = &cobra.Command{
 	Use:          "env",
 	Short:        "Print environment variables for the checker process",
-	Long:         "Outputs BITERRA_API_URL, BITERRA_CHECKER_TOKEN, BITERRA_TEAM_UID, BITERRA_SERVICE_UID. Use with eval $(biterra env) or --format dotenv for docker run --env-file.",
+	Long:         "Outputs BITERRA_API_URL, BITERRA_CHECKER_TOKEN, BITERRA_TEAM_UID, BITERRA_SERVICE_UID, and optional probe vars. Use with eval $(biterra env) or --format dotenv for docker run --env-file.",
 	RunE:         runEnv,
 	SilenceUsage: true,
 }
@@ -43,6 +43,15 @@ func runEnv(cmd *cobra.Command, args []string) error {
 		if cfg.ServiceUID != "" {
 			fmt.Printf("export BITERRA_SERVICE_UID=%q\n", cfg.ServiceUID)
 		}
+		if cfg.ProbeType != "" {
+			fmt.Printf("export BITERRA_PROBE_TYPE=%q\n", cfg.ProbeType)
+		}
+		if cfg.ProbeWebURL != "" {
+			fmt.Printf("export BITERRA_PROBE_WEB_URL=%q\n", cfg.ProbeWebURL)
+		}
+		if cfg.ProbeBinaryFile != "" {
+			fmt.Printf("export BITERRA_PROBE_BINARY_FLAG_FILE=%q\n", cfg.ProbeBinaryFile)
+		}
 	case "dotenv":
 		fmt.Printf("BITERRA_API_URL=%s\n", cfg.APIURL)
 		fmt.Printf("BITERRA_CHECKER_TOKEN=%s\n", cfg.CheckerToken)
@@ -51,6 +60,15 @@ func runEnv(cmd *cobra.Command, args []string) error {
 		}
 		if cfg.ServiceUID != "" {
 			fmt.Printf("BITERRA_SERVICE_UID=%s\n", cfg.ServiceUID)
+		}
+		if cfg.ProbeType != "" {
+			fmt.Printf("BITERRA_PROBE_TYPE=%s\n", cfg.ProbeType)
+		}
+		if cfg.ProbeWebURL != "" {
+			fmt.Printf("BITERRA_PROBE_WEB_URL=%s\n", cfg.ProbeWebURL)
+		}
+		if cfg.ProbeBinaryFile != "" {
+			fmt.Printf("BITERRA_PROBE_BINARY_FLAG_FILE=%s\n", cfg.ProbeBinaryFile)
 		}
 	default:
 		return fmt.Errorf("unknown format %q (use shell or dotenv)", envFormat)

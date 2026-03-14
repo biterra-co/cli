@@ -204,6 +204,11 @@ func runInit(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Probe config for host-side checks.
+	if err := collectProbeConfig(reader, cfg); err != nil {
+		return err
+	}
+
 	// Register checker instance now so run can focus on checks/SLA.
 	if strings.TrimSpace(cfg.TeamUID) != "" && strings.TrimSpace(cfg.ServiceUID) != "" {
 		ui.Blank()
@@ -241,4 +246,60 @@ func parseNumber(s string) int {
 	var n int
 	_, _ = fmt.Sscanf(s, "%d", &n)
 	return n
+}
+
+func collectProbeConfig(reader *bufio.Reader, cfg *config.Config) error {
+	ui.Blank()
+	ui.Rule()
+	ui.Blank()
+	ui.Section("Probe configuration")
+	ui.Muted("Choose how 'biterra run' checks service health before submitting SLA.")
+	ui.Muted("Types: web (HTTP 2xx) | binary (flag file path) | none (always up)")
+	ui.Blank()
+
+	currentType := strings.ToLower(strings.TrimSpace(cfg.ProbeType))
+	if currentType == "" {
+		currentType = "none"
+	}
+	ui.Prompt("Probe type [web/binary/none] (Enter to keep %s): ", currentType)
+	line, _ := reader.ReadString('\n')
+	choice := strings.ToLower(strings.TrimSpace(line))
+	if choice == "" {
+		choice = currentType
+	}
+	switch choice {
+	case "web", "binary", "none":
+		cfg.ProbeType = choice
+	default:
+		return fmt.Errorf("invalid probe type %q (use web, binary, or none)", choice)
+	}
+
+	switch cfg.ProbeType {
+	case "web":
+		ui.Prompt("Web health URL (Enter to keep %s): ", cfg.ProbeWebURL)
+		line, _ = reader.ReadString('\n')
+		v := strings.TrimSpace(line)
+		if v != "" {
+			cfg.ProbeWebURL = v
+		}
+		if strings.TrimSpace(cfg.ProbeWebURL) == "" {
+			return fmt.Errorf("probe type web requires a health URL")
+		}
+		cfg.ProbeBinaryFile = ""
+	case "binary":
+		ui.Prompt("Binary flag file path (Enter to keep %s): ", cfg.ProbeBinaryFile)
+		line, _ = reader.ReadString('\n')
+		v := strings.TrimSpace(line)
+		if v != "" {
+			cfg.ProbeBinaryFile = v
+		}
+		if strings.TrimSpace(cfg.ProbeBinaryFile) == "" {
+			return fmt.Errorf("probe type binary requires a flag file path")
+		}
+		cfg.ProbeWebURL = ""
+	case "none":
+		cfg.ProbeWebURL = ""
+		cfg.ProbeBinaryFile = ""
+	}
+	return nil
 }

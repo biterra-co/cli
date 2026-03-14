@@ -33,7 +33,7 @@ var runCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(runCmd)
 	runCmd.Flags().IntVar(&runIntervalSeconds, "interval-seconds", 30, "SLA loop interval in seconds")
-	runCmd.Flags().StringVar(&runHealthURL, "health-url", "", "Optional local health URL to probe (2xx = up)")
+	runCmd.Flags().StringVar(&runHealthURL, "health-url", "", "Optional web health URL override (2xx = up)")
 	runCmd.Flags().IntVar(&runHTTPTimeoutSec, "http-timeout-seconds", 10, "HTTP timeout for optional health URL probe")
 }
 
@@ -70,13 +70,23 @@ func runRun(cmd *cobra.Command, args []string) error {
 	ui.StepOK(serviceRoundUID)
 	ui.Blank()
 
-	var healthClient *http.Client
+	probeType := normalizeProbeType(cfg.ProbeType)
 	healthURL := strings.TrimSpace(runHealthURL)
-	if healthURL != "" {
-		healthClient = &http.Client{Timeout: time.Duration(runHTTPTimeoutSec) * time.Second}
+	if healthURL == "" {
+		healthURL = strings.TrimSpace(cfg.ProbeWebURL)
+	}
+	binaryFile := strings.TrimSpace(cfg.ProbeBinaryFile)
+	healthClient := &http.Client{Timeout: time.Duration(runHTTPTimeoutSec) * time.Second}
+	if err := validateProbeConfig(probeType, healthURL, binaryFile); err != nil {
+		return err
+	}
+
+	ui.KeyValue("Probe Type", probeType)
+	if probeType == "web" {
 		ui.KeyValue("Health URL", healthURL)
-	} else {
-		ui.Muted("No --health-url provided; defaulting SLA status to up=true.")
+	}
+	if probeType == "binary" {
+		ui.KeyValue("Flag file", binaryFile)
 	}
 	ui.KeyValue("Team UID", cfg.TeamUID)
 	ui.KeyValue("Service UID", cfg.ServiceUID)
@@ -112,10 +122,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 				continue
 			}
 
-			up := true
-			if healthClient != nil {
-				up = probeHealth(ctx, healthClient, healthURL)
-			}
+			up := evaluateProbe(ctx, healthClient, probeType, healthURL, binaryFile)
 
 			err = cl.SubmitSLA(ctx, round.RoundIndex, []client.SLAResult{
 				{
@@ -170,4 +177,42 @@ func probeHealth(ctx context.Context, httpClient *http.Client, healthURL string)
 	}
 	defer resp.Body.Close()
 	return resp.StatusCode >= 200 && resp.StatusCode < 300
+}
+
+func normalizeProbeType(v string) string {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "web", "binary", "none":
+		return strings.ToLower(strings.TrimSpace(v))
+	default:
+		return "none"
+	}
+}
+
+func validateProbeConfig(probeType, healthURL, binaryFile string) error {
+	switch probeType {
+	case "web":
+		if strings.TrimSpace(healthURL) == "" {
+			return fmt.Errorf("probe_type=web requires probe_web_url in config or --health-url override")
+		}
+	case "binary":
+		if strings.TrimSpace(binaryFile) == "" {
+			return fmt.Errorf("probe_type=binary requires probe_binary_flag_file in config")
+		}
+	}
+	return nil
+}
+
+func evaluateProbe(ctx context.Context, httpClient *http.Client, probeType, healthURL, binaryFile string) bool {
+	switch probeType {
+	case "web":
+		return probeHealth(ctx, httpClient, healthURL)
+	case "binary":
+		b, err := os.ReadFile(binaryFile)
+		if err != nil {
+			return false
+		}
+		return strings.TrimSpace(string(b)) != ""
+	default:
+		return true
+	}
 }
