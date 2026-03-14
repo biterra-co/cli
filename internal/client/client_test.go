@@ -164,25 +164,25 @@ func TestGetTeams(t *testing.T) {
 func TestGetServices(t *testing.T) {
 	ri := 1
 	tests := []struct {
-		name        string
-		roundUID    string
-		statusCode  int
-		body        string
+		name         string
+		roundUID     string
+		statusCode   int
+		body         string
 		wantServices []Service
-		wantErr     bool
-		want401     bool
+		wantErr      bool
+		want401      bool
 	}{
 		{
-			name:       "success",
-			statusCode: 200,
-			body:       `{"success":true,"data":{"services":[{"uid":"s1","name":"Service","slug":"svc","round_uid":"r1","round_index":1}]}}`,
+			name:         "success",
+			statusCode:   200,
+			body:         `{"success":true,"data":{"services":[{"uid":"s1","name":"Service","slug":"svc","round_uid":"r1","round_index":1}]}}`,
 			wantServices: []Service{{UID: "s1", Name: "Service", Slug: "svc", RoundUID: "r1", RoundIndex: &ri}},
 		},
 		{
-			name:       "with_round_param",
-			roundUID:   "round-123",
-			statusCode: 200,
-			body:       `{"success":true,"data":{"services":[]}}`,
+			name:         "with_round_param",
+			roundUID:     "round-123",
+			statusCode:   200,
+			body:         `{"success":true,"data":{"services":[]}}`,
 			wantServices: []Service{},
 		},
 		{
@@ -241,5 +241,115 @@ func TestIsUnauthorized(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("IsUnauthorized(%v) = %v, want %v", tt.err, got, tt.want)
 		}
+	}
+}
+
+func TestPutTeamInstances(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		body       string
+		wantErr    bool
+		want401    bool
+	}{
+		{
+			name:       "success",
+			statusCode: 200,
+			body:       `{"success":true}`,
+		},
+		{
+			name:       "unauthorized",
+			statusCode: 401,
+			body:       `{"success":false}`,
+			wantErr:    true,
+			want401:    true,
+		},
+		{
+			name:       "bad_request",
+			statusCode: 400,
+			body:       `{"success":false,"message":"service_uid not found"}`,
+			wantErr:    true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodPut {
+					t.Fatalf("method = %s", r.Method)
+				}
+				if r.URL.Path != "/api/ad/checker/teams/instances" {
+					t.Fatalf("path = %s", r.URL.Path)
+				}
+				w.WriteHeader(tt.statusCode)
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			defer srv.Close()
+
+			cl := New(srv.URL, "tok")
+			err := cl.PutTeamInstances(context.Background(), []TeamInstanceInput{
+				{TeamUID: "team-1", ServiceUID: "svc-1"},
+			})
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("err=%v wantErr=%v", err, tt.wantErr)
+			}
+			if tt.want401 && !IsUnauthorized(err) {
+				t.Fatalf("expected unauthorized error")
+			}
+		})
+	}
+}
+
+func TestSubmitSLA(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		body       string
+		wantErr    bool
+		want401    bool
+	}{
+		{
+			name:       "success",
+			statusCode: 200,
+			body:       `{"success":true}`,
+		},
+		{
+			name:       "unauthorized",
+			statusCode: 401,
+			body:       `{"success":false}`,
+			wantErr:    true,
+			want401:    true,
+		},
+		{
+			name:       "bad_request",
+			statusCode: 400,
+			body:       `{"success":false,"message":"Round not found for round_index"}`,
+			wantErr:    true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodPost {
+					t.Fatalf("method = %s", r.Method)
+				}
+				if r.URL.Path != "/api/ad/checker/sla" {
+					t.Fatalf("path = %s", r.URL.Path)
+				}
+				w.WriteHeader(tt.statusCode)
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			defer srv.Close()
+
+			cl := New(srv.URL, "tok")
+			err := cl.SubmitSLA(context.Background(), 1, []SLAResult{
+				{TeamUID: "team-1", ServiceUID: "svc-1", Up: true},
+			})
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("err=%v wantErr=%v", err, tt.wantErr)
+			}
+			if tt.want401 && !IsUnauthorized(err) {
+				t.Fatalf("expected unauthorized error")
+			}
+		})
 	}
 }

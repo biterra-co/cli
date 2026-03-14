@@ -204,6 +204,29 @@ func runInit(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Register checker instance now so run can focus on checks/SLA.
+	if strings.TrimSpace(cfg.TeamUID) != "" && strings.TrimSpace(cfg.ServiceUID) != "" {
+		ui.Blank()
+		ui.Rule()
+		ui.Blank()
+		ui.StepStart("Registering checker instance (team+service)... ")
+		if _, err := resolveServiceRoundUID(cmd.Context(), cl, cfg.ServiceUID); err != nil {
+			ui.StepFail()
+			return fmt.Errorf("service validation failed: %w", err)
+		}
+		err := cl.PutTeamInstances(cmd.Context(), []client.TeamInstanceInput{
+			{TeamUID: cfg.TeamUID, ServiceUID: cfg.ServiceUID},
+		})
+		if err != nil {
+			ui.StepFail()
+			if client.IsUnauthorized(err) {
+				return fmt.Errorf("invalid or expired token — create a new one in the Developer section and run init again")
+			}
+			return fmt.Errorf("checker check-in failed: %w", err)
+		}
+		ui.StepOK("registered")
+	}
+
 	if err := config.Save(cfg); err != nil {
 		return fmt.Errorf("could not save config: %w", err)
 	}
