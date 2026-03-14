@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/biterra-co/cli/internal/config"
 	"github.com/spf13/cobra"
@@ -15,6 +16,9 @@ var (
 	configSetCustomerPortalURL string
 	configSetTeam              string
 	configSetSvc               string
+	configSetProbeType         string
+	configSetProbeWebURL       string
+	configSetProbeBinaryFile   string
 )
 
 var configCmd = &cobra.Command{
@@ -47,6 +51,9 @@ func init() {
 	configSetCmd.Flags().StringVar(&configSetCustomerPortalURL, "customer-portal-url", "", "Customer portal URL for token setup (optional, default https://ctf.biterra.co)")
 	configSetCmd.Flags().StringVar(&configSetTeam, "team-uid", "", "Team UID (optional)")
 	configSetCmd.Flags().StringVar(&configSetSvc, "service-uid", "", "Service UID (optional)")
+	configSetCmd.Flags().StringVar(&configSetProbeType, "probe-type", "", "Probe type: web, binary, or none")
+	configSetCmd.Flags().StringVar(&configSetProbeWebURL, "probe-web-url", "", "Probe URL for web checks (used when probe-type=web)")
+	configSetCmd.Flags().StringVar(&configSetProbeBinaryFile, "probe-binary-flag-file", "", "Flag file path for binary checks (used when probe-type=binary)")
 }
 
 func runConfigGet(cmd *cobra.Command, args []string) error {
@@ -77,6 +84,9 @@ func runConfigGet(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Printf("team_uid: %s\n", cfg.TeamUID)
 	fmt.Printf("service_uid: %s\n", cfg.ServiceUID)
+	fmt.Printf("probe_type: %s\n", cfg.ProbeType)
+	fmt.Printf("probe_web_url: %s\n", cfg.ProbeWebURL)
+	fmt.Printf("probe_binary_flag_file: %s\n", cfg.ProbeBinaryFile)
 	return nil
 }
 
@@ -107,8 +117,28 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 	if configSetSvc != "" {
 		cfg.ServiceUID = configSetSvc
 	}
+	if configSetProbeType != "" {
+		cfg.ProbeType = strings.ToLower(strings.TrimSpace(configSetProbeType))
+	}
+	if configSetProbeWebURL != "" {
+		cfg.ProbeWebURL = strings.TrimSpace(configSetProbeWebURL)
+	}
+	if configSetProbeBinaryFile != "" {
+		cfg.ProbeBinaryFile = strings.TrimSpace(configSetProbeBinaryFile)
+	}
 	if cfg.APIURL == "" || cfg.CheckerToken == "" {
 		return fmt.Errorf("api_url and token are required — use --api-url and --token")
+	}
+	switch strings.ToLower(strings.TrimSpace(cfg.ProbeType)) {
+	case "", "none", "web", "binary":
+	default:
+		return fmt.Errorf("invalid probe_type %q (use web, binary, or none)", cfg.ProbeType)
+	}
+	if strings.ToLower(strings.TrimSpace(cfg.ProbeType)) == "web" && strings.TrimSpace(cfg.ProbeWebURL) == "" {
+		return fmt.Errorf("probe_type=web requires --probe-web-url (or set probe_web_url in config)")
+	}
+	if strings.ToLower(strings.TrimSpace(cfg.ProbeType)) == "binary" && strings.TrimSpace(cfg.ProbeBinaryFile) == "" {
+		return fmt.Errorf("probe_type=binary requires --probe-binary-flag-file (or set probe_binary_flag_file in config)")
 	}
 	return config.Save(cfg)
 }

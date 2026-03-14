@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -64,5 +65,63 @@ func TestProbeHealth(t *testing.T) {
 	}
 	if probeHealth(context.Background(), httpClient, "://bad-url") {
 		t.Fatalf("expected up=false for invalid URL")
+	}
+}
+
+func TestNormalizeProbeType(t *testing.T) {
+	if got := normalizeProbeType("web"); got != "web" {
+		t.Fatalf("got=%s", got)
+	}
+	if got := normalizeProbeType("BINARY"); got != "binary" {
+		t.Fatalf("got=%s", got)
+	}
+	if got := normalizeProbeType(""); got != "none" {
+		t.Fatalf("got=%s", got)
+	}
+	if got := normalizeProbeType("invalid"); got != "none" {
+		t.Fatalf("got=%s", got)
+	}
+}
+
+func TestValidateProbeConfig(t *testing.T) {
+	if err := validateProbeConfig("none", "", ""); err != nil {
+		t.Fatalf("none should be valid: %v", err)
+	}
+	if err := validateProbeConfig("web", "http://localhost/health", ""); err != nil {
+		t.Fatalf("web should be valid: %v", err)
+	}
+	if err := validateProbeConfig("binary", "", "/tmp/flag"); err != nil {
+		t.Fatalf("binary should be valid: %v", err)
+	}
+	if err := validateProbeConfig("web", "", ""); err == nil {
+		t.Fatalf("expected error for missing web url")
+	}
+	if err := validateProbeConfig("binary", "", ""); err == nil {
+		t.Fatalf("expected error for missing binary file")
+	}
+}
+
+func TestEvaluateProbeBinary(t *testing.T) {
+	f, err := os.CreateTemp(t.TempDir(), "flag-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if _, err := f.WriteString("FLAG{ok}"); err != nil {
+		t.Fatal(err)
+	}
+	if !evaluateProbe(context.Background(), &http.Client{Timeout: time.Second}, "binary", "", f.Name()) {
+		t.Fatalf("expected binary probe up for non-empty file")
+	}
+	empty, err := os.CreateTemp(t.TempDir(), "flag-empty-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer empty.Close()
+	if evaluateProbe(context.Background(), &http.Client{Timeout: time.Second}, "binary", "", empty.Name()) {
+		t.Fatalf("expected binary probe down for empty file")
+	}
+	if evaluateProbe(context.Background(), &http.Client{Timeout: time.Second}, "binary", "", "/no/such/file") {
+		t.Fatalf("expected binary probe down for missing file")
 	}
 }

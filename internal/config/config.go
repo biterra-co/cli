@@ -15,6 +15,9 @@ type Config struct {
 	CustomerPortalURL string `yaml:"customer_portal_url,omitempty" json:"customer_portal_url,omitempty"`
 	TeamUID           string `yaml:"team_uid,omitempty" json:"team_uid,omitempty"`
 	ServiceUID        string `yaml:"service_uid,omitempty" json:"service_uid,omitempty"`
+	ProbeType         string `yaml:"probe_type,omitempty" json:"probe_type,omitempty"`                         // web | binary | none
+	ProbeWebURL       string `yaml:"probe_web_url,omitempty" json:"probe_web_url,omitempty"`                   // used when probe_type=web
+	ProbeBinaryFile   string `yaml:"probe_binary_flag_file,omitempty" json:"probe_binary_flag_file,omitempty"` // used when probe_type=binary
 }
 
 // Load reads config from project-local file, then user global, with env overrides. Returns (config, pathUsed, error).
@@ -25,6 +28,9 @@ func Load() (*Config, string, error) {
 	cfg.CustomerPortalURL = os.Getenv("BITERRA_CUSTOMER_PORTAL_URL")
 	cfg.TeamUID = os.Getenv("BITERRA_TEAM_UID")
 	cfg.ServiceUID = os.Getenv("BITERRA_SERVICE_UID")
+	cfg.ProbeType = os.Getenv("BITERRA_PROBE_TYPE")
+	cfg.ProbeWebURL = os.Getenv("BITERRA_PROBE_WEB_URL")
+	cfg.ProbeBinaryFile = os.Getenv("BITERRA_PROBE_BINARY_FLAG_FILE")
 
 	// Prefer project-local then global
 	localPaths := []string{"./.biterra.yaml", "./.biterra.json"}
@@ -67,6 +73,15 @@ func Load() (*Config, string, error) {
 	}
 	if v := os.Getenv("BITERRA_SERVICE_UID"); v != "" {
 		cfg.ServiceUID = v
+	}
+	if v := os.Getenv("BITERRA_PROBE_TYPE"); v != "" {
+		cfg.ProbeType = v
+	}
+	if v := os.Getenv("BITERRA_PROBE_WEB_URL"); v != "" {
+		cfg.ProbeWebURL = v
+	}
+	if v := os.Getenv("BITERRA_PROBE_BINARY_FLAG_FILE"); v != "" {
+		cfg.ProbeBinaryFile = v
 	}
 	if v := os.Getenv("BITERRA_CUSTOMER_PORTAL_URL"); v != "" {
 		cfg.CustomerPortalURL = v
