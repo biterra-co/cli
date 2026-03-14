@@ -68,11 +68,12 @@ Ensure `$GOPATH/bin` or `$HOME/go/bin` is on your `PATH`.
 
 | Command | Description |
 |--------|-------------|
-| `biterra init` | Interactive setup: choose to open the portal in your browser or paste a token. CLI looks up which world it's for, validates, then optional team and service. Saves config. |
+| `biterra init` | Interactive setup: choose to open the portal in your browser or paste a token. CLI looks up which world it's for, validates, prompts for team/service, then performs checker check-in (`PUT /teams/instances` with team+service). Saves config. |
 | `biterra config set --api-url URL --token TOKEN [--customer-portal-url URL] [--team-uid UID] [--service-uid UID]` | Non-interactive: set and persist API URL, token, and optional customer portal URL, team, and service. |
 | `biterra config get` | Print current config (token masked). Use `--show-token` for scripting. |
 | `biterra check` | Validate: call `GET /rounds/current`; print success and current round or exit 1 with error. |
 | `biterra env` | Print env vars: `BITERRA_API_URL`, `BITERRA_CHECKER_TOKEN`, `BITERRA_TEAM_UID`, `BITERRA_SERVICE_UID`. Default: shell `export` lines; `--format dotenv` for a `.env` block. |
+| `biterra run [--interval-seconds N] [--health-url URL]` | Run checker SLA loop: submit SLA only while the current round matches the selected service's round. Optional `--health-url` sets up/down by HTTP 2xx. |
 
 ## Config file and precedence
 

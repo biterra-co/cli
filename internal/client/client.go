@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -182,4 +183,87 @@ func (c *Client) GetServices(ctx context.Context, roundUID string) ([]Service, e
 		}
 	}
 	return data.Services, nil
+}
+
+// TeamInstanceInput is one team/service row for checker check-in.
+// instance_url is optional; checker can send only team_uid+service_uid.
+type TeamInstanceInput struct {
+	TeamUID     string  `json:"team_uid"`
+	ServiceUID  string  `json:"service_uid"`
+	InstanceURL *string `json:"instance_url,omitempty"`
+}
+
+// PutTeamInstances performs checker check-in/upsert via PUT /teams/instances.
+func (c *Client) PutTeamInstances(ctx context.Context, instances []TeamInstanceInput) error {
+	body := map[string]interface{}{
+		"instances": instances,
+	}
+	resp, err := c.do(ctx, http.MethodPut, "/teams/instances", body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusUnauthorized {
+		return &errUnauthorized{msg: "401 Unauthorized"}
+	}
+	if resp.StatusCode != http.StatusOK {
+		msg := readErrorMessage(resp)
+		if msg != "" {
+			return fmt.Errorf("teams/instances: %s (%s)", resp.Status, msg)
+		}
+		return fmt.Errorf("teams/instances: %s", resp.Status)
+	}
+	return nil
+}
+
+// SLAResult is one SLA result for a team/service.
+type SLAResult struct {
+	TeamUID    string `json:"team_uid"`
+	ServiceUID string `json:"service_uid"`
+	Up         bool   `json:"up"`
+}
+
+// SubmitSLA posts SLA status for one round.
+func (c *Client) SubmitSLA(ctx context.Context, roundIndex int, results []SLAResult) error {
+	body := map[string]interface{}{
+		"round_index": roundIndex,
+		"results":     results,
+	}
+	resp, err := c.do(ctx, http.MethodPost, "/sla", body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusUnauthorized {
+		return &errUnauthorized{msg: "401 Unauthorized"}
+	}
+	if resp.StatusCode != http.StatusOK {
+		msg := readErrorMessage(resp)
+		if msg != "" {
+			return fmt.Errorf("sla: %s (%s)", resp.Status, msg)
+		}
+		return fmt.Errorf("sla: %s", resp.Status)
+	}
+	return nil
+}
+
+func readErrorMessage(resp *http.Response) string {
+	if resp == nil || resp.Body == nil {
+		return ""
+	}
+	b, err := io.ReadAll(resp.Body)
+	if err != nil || len(b) == 0 {
+		return ""
+	}
+	var out struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(b, &out); err == nil && strings.TrimSpace(out.Message) != "" {
+		return out.Message
+	}
+	s := strings.TrimSpace(string(b))
+	if len(s) > 200 {
+		s = s[:200]
+	}
+	return s
 }
